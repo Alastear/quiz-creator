@@ -5,6 +5,14 @@ import { db } from "@/lib/db";
 import { consents } from "@/lib/db/schema";
 import { CURRENT_POLICY_VERSION } from "@/lib/consent";
 
+/** ดึง user ปัจจุบันสำหรับ server action — โยน error ถ้าไม่ล็อกอิน/ถูกระงับ */
+export async function getActor() {
+  const session = await auth();
+  if (!session?.user) throw new Error("unauthorized");
+  if (session.user.status === "suspended") throw new Error("suspended");
+  return session.user;
+}
+
 /** มี consent เวอร์ชันปัจจุบันแล้วหรือยัง */
 export async function hasCurrentConsent(userId: string): Promise<boolean> {
   const rows = await db

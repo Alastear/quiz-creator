@@ -38,11 +38,18 @@ export default async function DashboardPage() {
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-6 py-12">
       <div className="flex items-center justify-between">
         <h1 className={`${kanit.className} text-2xl font-semibold`}>แดชบอร์ด</h1>
-        <form action={logout}>
-          <Button type="submit" variant="outline" size="sm">
-            ออกจากระบบ
-          </Button>
-        </form>
+        <div className="flex gap-2">
+          {user.role === "admin" && (
+            <Button variant="secondary" size="sm" render={<Link href="/admin" />}>
+              Admin
+            </Button>
+          )}
+          <form action={logout}>
+            <Button type="submit" variant="outline" size="sm">
+              ออกจากระบบ
+            </Button>
+          </form>
+        </div>
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
         สวัสดี {user.name ?? user.email} · เผยแพร่อยู่ {activeCount}/

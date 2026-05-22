@@ -260,11 +260,28 @@ export const quizArchives = pgTable("quiz_archives", {
   restorableUntil: timestamp("restorable_until", { withTimezone: true }).notNull(),
 });
 
+// ---- audit log การกระทำของ admin/support (DESIGN.md ข้อ 11.2, 12) ----
+export const auditLogs = pgTable("audit_logs", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  actorUserId: uuid("actor_user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  action: text("action").notNull(), // เช่น 'user.suspend','user.role','credit.adjust','quiz.unpublish'
+  targetType: text("target_type").notNull(), // 'user' | 'quiz' | ...
+  targetId: text("target_id"),
+  detail: jsonb("detail"), // ค่าก่อน/หลัง + เหตุผล
+  ip: text("ip"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Consent = typeof consents.$inferSelect;
 export type Media = typeof media.$inferSelect;
 export type QuizArchive = typeof quizArchives.$inferSelect;
+export type AuditLog = typeof auditLogs.$inferSelect;
 export type Quiz = typeof quizzes.$inferSelect;
 export type Question = typeof questions.$inferSelect;
 export type Choice = typeof choices.$inferSelect;

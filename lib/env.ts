@@ -23,6 +23,8 @@ const schema = z.object({
   AUTH_SECRET: z.string().min(1),
   AUTH_GOOGLE_ID: z.string().optional(),
   AUTH_GOOGLE_SECRET: z.string().optional(),
+  // อีเมลที่จะถูกตั้งเป็น admin อัตโนมัติตอนเข้าหน้า admin (คั่นด้วย comma)
+  ADMIN_EMAILS: z.string().default(""),
 
   NEXT_PUBLIC_APP_URL: z.url().default("http://localhost:3000"),
   CRON_SECRET: z.string().min(1).default("dev-cron-secret-change-me"),

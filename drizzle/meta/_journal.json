@@ -43,6 +43,13 @@
       "when": 1779491179336,
       "tag": "0005_lazy_professor_monster",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1779491964467,
+      "tag": "0006_productive_sumo",
+      "breakpoints": true
     }
   ]
 }

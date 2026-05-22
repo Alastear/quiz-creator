@@ -1,0 +1,28 @@
+# Postgres สำหรับ dev บน local (DESIGN.md ข้อ 6.2)
+# ใช้ Postgres ตัวเดียวกับ prod (Neon) → schema/SQL เหมือนกันเป๊ะ ย้ายขึ้นแค่เปลี่ยน DATABASE_URL
+#
+#   pnpm db:up    -> docker compose up -d
+#   pnpm db:down  -> docker compose down
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: quibby-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: quibby
+      POSTGRES_PASSWORD: quibby_dev
+      POSTGRES_DB: quibby
+    # ใช้ host port 5435 กันชนกับ Postgres ตัวอื่นบนเครื่อง (container ยังเป็น 5432)
+    ports:
+      - "5435:5432"
+    volumes:
+      - quibby_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U quibby -d quibby"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  quibby_pgdata:

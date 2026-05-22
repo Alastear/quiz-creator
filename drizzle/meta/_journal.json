@@ -15,6 +15,13 @@
       "when": 1779453377095,
       "tag": "0001_damp_molten_man",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1779454133694,
+      "tag": "0002_lowly_spencer_smythe",
+      "breakpoints": true
     }
   ]
 }

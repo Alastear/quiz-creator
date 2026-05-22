@@ -5,6 +5,7 @@ import {
   text,
   timestamp,
   integer,
+  jsonb,
   primaryKey,
 } from "drizzle-orm/pg-core";
 import type { AdapterAccountType } from "next-auth/adapters";
@@ -90,6 +91,121 @@ export const consents = pgTable("consents", {
   userAgent: text("user_agent"),
 });
 
+// ---- Quiz core (DESIGN.md ข้อ 4, 7) ----
+export const resultLogic = pgEnum("result_logic", [
+  "archetype",
+  "range",
+  "branching",
+]);
+export const quizStatus = pgEnum("quiz_status", [
+  "draft",
+  "published",
+  "expired",
+  "archived",
+]);
+// media แบบ inline (Phase 2 รองรับ url/ลิงก์ก่อน, Phase 3 เพิ่มอัปโหลด)
+export const mediaType = pgEnum("media_type", [
+  "none",
+  "image",
+  "audio",
+  "video",
+]);
+
+export const quizzes = pgTable("quizzes", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  publicId: text("public_id").notNull().unique(), // nanoid ใช้ใน URL
+  ownerId: uuid("owner_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  coverImageUrl: text("cover_image_url"),
+  resultLogic: resultLogic("result_logic").notNull().default("archetype"),
+  status: quizStatus("status").notNull().default("draft"),
+  theme: jsonb("theme")
+    .$type<{ fontFamily?: string; accent?: string }>()
+    .notNull()
+    .default({}),
+  settings: jsonb("settings")
+    .$type<{ showProbabilityBar?: boolean }>()
+    .notNull()
+    .default({}),
+  viewCount: integer("view_count").notNull().default(0),
+  playCount: integer("play_count").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  publishedAt: timestamp("published_at", { withTimezone: true }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+});
+
+export const questions = pgTable("questions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  quizId: uuid("quiz_id")
+    .notNull()
+    .references(() => quizzes.id, { onDelete: "cascade" }),
+  orderIndex: integer("order_index").notNull().default(0),
+  promptText: text("prompt_text").notNull(),
+  mediaType: mediaType("media_type").notNull().default("none"),
+  mediaUrl: text("media_url"),
+});
+
+export const choices = pgTable("choices", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  questionId: uuid("question_id")
+    .notNull()
+    .references(() => questions.id, { onDelete: "cascade" }),
+  orderIndex: integer("order_index").notNull().default(0),
+  labelText: text("label_text").notNull(),
+  mediaType: mediaType("media_type").notNull().default("none"),
+  mediaUrl: text("media_url"),
+  // archetype: { "<result_key>": points }
+  scoreMap: jsonb("score_map").$type<Record<string, number>>().notNull().default({}),
+  // range: แต้มของช้อยนี้
+  points: integer("points").notNull().default(0),
+  // branching (Phase 3.5): "q:<id>" | "r:<key>" | null=ไหลปกติ
+  next: text("next"),
+});
+
+export const results = pgTable("results", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  quizId: uuid("quiz_id")
+    .notNull()
+    .references(() => quizzes.id, { onDelete: "cascade" }),
+  orderIndex: integer("order_index").notNull().default(0),
+  resultKey: text("result_key").notNull(), // unique ภายใน quiz
+  title: text("title").notNull(),
+  description: text("description"),
+  mediaType: mediaType("media_type").notNull().default("none"),
+  mediaUrl: text("media_url"),
+  shareText: text("share_text"),
+  // free-form designer (Phase หลัง)
+  layout: jsonb("layout"),
+  // range เท่านั้น
+  scoreMin: integer("score_min"),
+  scoreMax: integer("score_max"),
+});
+
+export const plays = pgTable("plays", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  quizId: uuid("quiz_id")
+    .notNull()
+    .references(() => quizzes.id, { onDelete: "cascade" }),
+  resultId: uuid("result_id").references(() => results.id, {
+    onDelete: "set null",
+  }),
+  answers: jsonb("answers").$type<Record<string, string>>().notNull().default({}),
+  sessionHash: text("session_hash"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Consent = typeof consents.$inferSelect;
+export type Quiz = typeof quizzes.$inferSelect;
+export type Question = typeof questions.$inferSelect;
+export type Choice = typeof choices.$inferSelect;
+export type QuizResult = typeof results.$inferSelect;
+export type Play = typeof plays.$inferSelect;

@@ -19,6 +19,11 @@ const schema = z.object({
   RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().default("Quibby <noreply@quibby.app>"),
 
+  // Auth.js
+  AUTH_SECRET: z.string().min(1),
+  AUTH_GOOGLE_ID: z.string().optional(),
+  AUTH_GOOGLE_SECRET: z.string().optional(),
+
   NEXT_PUBLIC_APP_URL: z.url().default("http://localhost:3000"),
   CRON_SECRET: z.string().min(1).default("dev-cron-secret-change-me"),
 });

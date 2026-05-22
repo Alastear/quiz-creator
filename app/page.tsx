@@ -22,15 +22,15 @@ export default function Home() {
       </p>
 
       <div className="mt-8 flex gap-3">
-        <Button size="lg" disabled>
-          สร้าง quiz (เร็ว ๆ นี้)
+        <Button size="lg" render={<Link href="/dashboard" />}>
+          เริ่มใช้งาน
         </Button>
         <Button
           size="lg"
           variant="outline"
-          render={<Link href="/api/health" />}
+          render={<Link href="/signin" />}
         >
-          ตรวจสถานะระบบ
+          เข้าสู่ระบบ
         </Button>
       </div>
 

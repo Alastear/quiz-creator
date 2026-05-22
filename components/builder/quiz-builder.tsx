@@ -6,11 +6,12 @@ import Link from "next/link";
 import { nanoid } from "nanoid";
 import { saveQuiz, publishQuiz, unpublishQuiz } from "@/lib/actions/quiz";
 import type { QuizDraft } from "@/lib/validation/quiz";
-import { QUIZ_FONTS, type QuizFontKey } from "@/lib/fonts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { MediaInput } from "@/components/builder/media-input";
+import { FontPicker } from "@/components/builder/font-picker";
 
 type Props = {
   quizId: string;
@@ -127,47 +128,35 @@ export function QuizBuilder({ quizId, publicId, status, initial }: Props) {
               }
             />
           </Field>
-          <Field label="รูปปก (URL, ไม่บังคับ)">
-            <Input
+          <Field label="รูปปก (ไม่บังคับ)">
+            <MediaInput
               value={draft.coverImageUrl ?? ""}
-              placeholder="https://..."
-              onChange={(e) =>
-                update((d) => void (d.coverImageUrl = e.target.value))
+              onChange={(url) =>
+                update((d) => void (d.coverImageUrl = url))
               }
             />
           </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="โหมดผลลัพธ์">
-              <select
-                className="h-9 rounded-md border bg-background px-2 text-sm"
-                value={draft.resultLogic}
-                onChange={(e) =>
-                  update(
-                    (d) =>
-                      void (d.resultLogic = e.target.value as "archetype" | "range"),
-                  )
-                }
-              >
-                <option value="archetype">ทายนิสัย (คะแนนสูงสุดชนะ)</option>
-                <option value="range">ช่วงคะแนน (รวมแต้ม)</option>
-              </select>
-            </Field>
-            <Field label="ฟอนต์">
-              <select
-                className="h-9 rounded-md border bg-background px-2 text-sm"
-                value={draft.theme.fontFamily ?? "sarabun"}
-                onChange={(e) =>
-                  update((d) => void (d.theme.fontFamily = e.target.value))
-                }
-              >
-                {Object.entries(QUIZ_FONTS).map(([k, v]) => (
-                  <option key={k} value={k}>
-                    {v.label}
-                  </option>
-                ))}
-              </select>
-            </Field>
-          </div>
+          <Field label="โหมดผลลัพธ์">
+            <select
+              className="h-9 rounded-md border bg-background px-2 text-sm"
+              value={draft.resultLogic}
+              onChange={(e) =>
+                update(
+                  (d) =>
+                    void (d.resultLogic = e.target.value as "archetype" | "range"),
+                )
+              }
+            >
+              <option value="archetype">ทายนิสัย (คะแนนสูงสุดชนะ)</option>
+              <option value="range">ช่วงคะแนน (รวมแต้ม)</option>
+            </select>
+          </Field>
+          <Field label="ฟอนต์">
+            <FontPicker
+              value={draft.theme.fontFamily ?? "sarabun"}
+              onChange={(k) => update((d) => void (d.theme.fontFamily = k))}
+            />
+          </Field>
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
@@ -185,26 +174,10 @@ export function QuizBuilder({ quizId, publicId, status, initial }: Props) {
 
       {/* ---- Results ---- */}
       <Card className="mb-6">
-        <CardHeader className="flex-row items-center justify-between">
-          <CardTitle className="text-base">ผลลัพธ์ ({draft.results.length})</CardTitle>
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={draft.results.length >= 10}
-            onClick={() =>
-              update((d) =>
-                void d.results.push({
-                  resultKey: nanoid(6),
-                  title: `ผลลัพธ์ใหม่`,
-                  mediaType: "none",
-                  scoreMin: 0,
-                  scoreMax: 0,
-                }),
-              )
-            }
-          >
-            + เพิ่มผลลัพธ์
-          </Button>
+        <CardHeader>
+          <CardTitle className="text-base">
+            ผลลัพธ์ ({draft.results.length})
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {draft.results.map((r, i) => (
@@ -221,9 +194,7 @@ export function QuizBuilder({ quizId, publicId, status, initial }: Props) {
                   size="sm"
                   variant="ghost"
                   disabled={draft.results.length <= 2}
-                  onClick={() =>
-                    update((d) => void d.results.splice(i, 1))
-                  }
+                  onClick={() => update((d) => void d.results.splice(i, 1))}
                 >
                   ลบ
                 </Button>
@@ -235,13 +206,13 @@ export function QuizBuilder({ quizId, publicId, status, initial }: Props) {
                   update((d) => void (d.results[i].description = e.target.value))
                 }
               />
-              <Input
+              <MediaInput
                 value={r.mediaUrl ?? ""}
-                placeholder="รูปผลลัพธ์ (URL)"
-                onChange={(e) =>
+                placeholder="รูปผลลัพธ์ (URL) หรืออัปโหลด"
+                onChange={(url) =>
                   update((d) => {
-                    d.results[i].mediaUrl = e.target.value;
-                    d.results[i].mediaType = e.target.value ? "image" : "none";
+                    d.results[i].mediaUrl = url;
+                    d.results[i].mediaType = url ? "image" : "none";
                   })
                 }
               />
@@ -275,32 +246,33 @@ export function QuizBuilder({ quizId, publicId, status, initial }: Props) {
               )}
             </div>
           ))}
+          <Button
+            variant="outline"
+            className="w-full"
+            disabled={draft.results.length >= 10}
+            onClick={() =>
+              update((d) =>
+                void d.results.push({
+                  resultKey: nanoid(6),
+                  title: "ผลลัพธ์ใหม่",
+                  mediaType: "none",
+                  scoreMin: 0,
+                  scoreMax: 0,
+                }),
+              )
+            }
+          >
+            + เพิ่มผลลัพธ์
+          </Button>
         </CardContent>
       </Card>
 
       {/* ---- Questions ---- */}
       <Card className="mb-10">
-        <CardHeader className="flex-row items-center justify-between">
-          <CardTitle className="text-base">คำถาม ({draft.questions.length})</CardTitle>
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={draft.questions.length >= 50}
-            onClick={() =>
-              update((d) =>
-                void d.questions.push({
-                  promptText: "คำถามใหม่",
-                  mediaType: "none",
-                  choices: [
-                    { labelText: "ตัวเลือก 1", mediaType: "none", scoreMap: {}, points: 0 },
-                    { labelText: "ตัวเลือก 2", mediaType: "none", scoreMap: {}, points: 0 },
-                  ],
-                }),
-              )
-            }
-          >
-            + เพิ่มคำถาม
-          </Button>
+        <CardHeader>
+          <CardTitle className="text-base">
+            คำถาม ({draft.questions.length})
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-5">
           {draft.questions.map((q, qi) => (
@@ -323,13 +295,13 @@ export function QuizBuilder({ quizId, publicId, status, initial }: Props) {
                   update((d) => void (d.questions[qi].promptText = e.target.value))
                 }
               />
-              <Input
+              <MediaInput
                 value={q.mediaUrl ?? ""}
-                placeholder="รูปประกอบคำถาม (URL, ไม่บังคับ)"
-                onChange={(e) =>
+                placeholder="รูปประกอบคำถาม (ไม่บังคับ)"
+                onChange={(url) =>
                   update((d) => {
-                    d.questions[qi].mediaUrl = e.target.value;
-                    d.questions[qi].mediaType = e.target.value ? "image" : "none";
+                    d.questions[qi].mediaUrl = url;
+                    d.questions[qi].mediaType = url ? "image" : "none";
                   })
                 }
               />
@@ -352,6 +324,16 @@ export function QuizBuilder({ quizId, publicId, status, initial }: Props) {
                       <Button size="sm" variant="ghost" disabled={q.choices.length <= 2}
                         onClick={() => update((d) => void d.questions[qi].choices.splice(ci, 1))}>ลบ</Button>
                     </div>
+                    <MediaInput
+                      value={c.mediaUrl ?? ""}
+                      placeholder="รูปตัวเลือก (ไม่บังคับ)"
+                      onChange={(url) =>
+                        update((d) => {
+                          d.questions[qi].choices[ci].mediaUrl = url;
+                          d.questions[qi].choices[ci].mediaType = url ? "image" : "none";
+                        })
+                      }
+                    />
                     {/* scoring */}
                     {isRange ? (
                       <div className="flex items-center gap-2 text-sm">
@@ -390,6 +372,25 @@ export function QuizBuilder({ quizId, publicId, status, initial }: Props) {
               </div>
             </div>
           ))}
+          <Button
+            variant="outline"
+            className="w-full"
+            disabled={draft.questions.length >= 50}
+            onClick={() =>
+              update((d) =>
+                void d.questions.push({
+                  promptText: "คำถามใหม่",
+                  mediaType: "none",
+                  choices: [
+                    { labelText: "ตัวเลือก 1", mediaType: "none", scoreMap: {}, points: 0 },
+                    { labelText: "ตัวเลือก 2", mediaType: "none", scoreMap: {}, points: 0 },
+                  ],
+                }),
+              )
+            }
+          >
+            + เพิ่มคำถาม
+          </Button>
         </CardContent>
       </Card>
     </div>

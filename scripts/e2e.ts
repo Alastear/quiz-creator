@@ -2,7 +2,7 @@
 // signin (magic link) -> consent -> create -> publish -> play -> result
 // รัน: pnpm exec tsx scripts/e2e.ts   (ต้องมี dev server ที่ :3100 + log ที่ /tmp/quibby-dev.log)
 import { chromium } from "playwright";
-import { readFileSync, statSync } from "node:fs";
+import { readFileSync, statSync, writeFileSync } from "node:fs";
 
 const BASE = "http://localhost:3100";
 const LOG = "/tmp/quibby-dev.log";
@@ -32,10 +32,14 @@ async function main() {
   log(`requested magic link for ${email}`);
 
   let link: string | null = null;
-  for (let i = 0; i < 30; i++) {
+  for (let i = 0; i < 80; i++) {
     if (statSync(LOG).size > sizeBefore) {
-      link = latestMagicLink();
-      if (link) break;
+      const l = latestMagicLink();
+      // เอาเฉพาะลิงก์ที่เพิ่งเกิดหลังกดส่ง (ไม่ใช่ของรอบก่อน)
+      if (l) {
+        link = l;
+        break;
+      }
     }
     await sleep(500);
   }
@@ -64,6 +68,17 @@ async function main() {
   // ตั้งชื่อผ่าน field แรก (ชื่อ quiz)
   const titleInput = page.locator("input").first();
   await titleInput.fill("Quiz ทดสอบจาก e2e");
+
+  // 3.5) อัปโหลดรูปปก (ทดสอบ /api/upload + storage adapter)
+  const png = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4nGNgYGAAAAAEAAH2FzhVAAAAAElFTkSuQmCC",
+    "base64",
+  );
+  writeFileSync("/tmp/quibby-test.png", png);
+  await page.locator('input[type=file]').first().setInputFiles("/tmp/quibby-test.png");
+  await page.waitForSelector('img[src*="/api/media/"]', { timeout: 10000 });
+  log("uploaded cover image ✓");
+  await page.screenshot({ path: "/tmp/quibby-builder.png", fullPage: true });
 
   // 4) publish (ข้อมูล seed ผ่าน validation อยู่แล้ว)
   await page.getByRole("button", { name: "เผยแพร่", exact: true }).click();
@@ -95,8 +110,22 @@ async function main() {
   const gotResult = await page.getByText("ผลลัพธ์ของคุณคือ").isVisible();
   if (!gotResult) throw new Error("ไม่ถึงหน้าผลลัพธ์");
   const resultTitle = await page.locator("h1").first().textContent();
+  log(`reached result ✓ — "${resultTitle?.trim()}"`);
+
+  // 6) save-as-image (ต้องไม่มี error toast)
+  await page.getByRole("button", { name: /บันทึกรูปผลลัพธ์/ }).click();
+  await page.waitForTimeout(1500);
+  if (await page.getByText("บันทึกรูปไม่สำเร็จ").isVisible().catch(() => false))
+    throw new Error("save image ล้มเหลว");
+  log("save result image ✓ (ไม่มี error)");
+
+  // 7) single share button -> menu มี platform
+  await page.getByRole("button", { name: /แชร์/ }).click();
+  await page.waitForTimeout(300);
+  if (!(await page.getByRole("button", { name: "LINE" }).isVisible()))
+    throw new Error("share menu ไม่มี LINE");
+  log("share menu เปิด + มี LINE/Facebook/X ✓");
   await page.screenshot({ path: "/tmp/quibby-result.png", fullPage: true });
-  log(`reached result ✓ — "${resultTitle?.trim()}" (screenshot: /tmp/quibby-result.png)`);
 
   await browser.close();
   console.log("\n✅ e2e ครบ flow ผ่านทั้งหมด");

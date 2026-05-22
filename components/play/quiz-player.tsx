@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef } from "react";
+import { toPng } from "html-to-image";
 import { submitPlay, type PlayResult } from "@/lib/actions/play";
 import { QUIZ_FONTS, type QuizFontKey } from "@/lib/fonts";
 import { Button } from "@/components/ui/button";
@@ -134,7 +135,11 @@ function ResultScreen({
   quizTitle: string;
   result: PlayResult;
 }) {
-  const [copied, setCopied] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const [savingImg, setSavingImg] = useState(false);
+
   const shareUrl =
     typeof window !== "undefined"
       ? `${window.location.origin}/quiz/${publicId}`
@@ -149,75 +154,136 @@ function ResultScreen({
     x: `https://twitter.com/intent/tweet?text=${enc(shareText)}&url=${enc(shareUrl)}`,
   };
 
+  function flash(m: string) {
+    setToast(m);
+    setTimeout(() => setToast(null), 1600);
+  }
+
   async function copyLink() {
     await navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    flash("คัดลอกลิงก์แล้ว ✓");
+    setShareOpen(false);
+  }
+
+  function openLink(href: string) {
+    window.open(href, "_blank", "noopener,noreferrer");
+    setShareOpen(false);
   }
 
   async function nativeShare() {
+    setShareOpen(false);
     if (navigator.share) {
-      await navigator.share({ title: quizTitle, text: shareText, url: shareUrl });
+      await navigator
+        .share({ title: quizTitle, text: shareText, url: shareUrl })
+        .catch(() => {});
     } else {
       await copyLink();
     }
   }
 
+  async function saveImage() {
+    if (!cardRef.current) return;
+    setSavingImg(true);
+    try {
+      const dataUrl = await toPng(cardRef.current, {
+        cacheBust: true,
+        pixelRatio: 2,
+        backgroundColor: "#ffffff",
+      });
+      const a = document.createElement("a");
+      a.href = dataUrl;
+      a.download = `quibby-${result.resultKey}.png`;
+      a.click();
+    } catch {
+      flash("บันทึกรูปไม่สำเร็จ (รูปภายนอกบางรูปอาจติดข้อจำกัด)");
+    } finally {
+      setSavingImg(false);
+    }
+  }
+
   return (
-    <div className="flex flex-1 flex-col items-center gap-4 text-center">
-      <p className="text-sm text-muted-foreground">ผลลัพธ์ของคุณคือ</p>
-      {result.mediaUrl && (
-        <img
-          src={result.mediaUrl}
-          alt=""
-          className="max-h-64 w-auto rounded-lg object-cover"
-        />
-      )}
-      <h1 className="text-3xl font-bold">{result.title}</h1>
-      {result.description && (
-        <p className="max-w-md text-muted-foreground">{result.description}</p>
-      )}
+    <div className="flex flex-1 flex-col items-center gap-4">
+      {/* ส่วนที่จะถูกแคปเป็นรูป */}
+      <div
+        ref={cardRef}
+        className="flex w-full flex-col items-center gap-3 rounded-xl bg-background p-6 text-center"
+      >
+        <p className="text-sm text-muted-foreground">ผลลัพธ์ของคุณคือ</p>
+        {result.mediaUrl && (
+          <img
+            src={result.mediaUrl}
+            alt=""
+            crossOrigin="anonymous"
+            className="max-h-64 w-auto rounded-lg object-cover"
+          />
+        )}
+        <h1 className="text-3xl font-bold">{result.title}</h1>
+        {result.description && (
+          <p className="max-w-md text-muted-foreground">{result.description}</p>
+        )}
 
-      {result.showProbabilityBar && result.distribution.length > 0 && (
-        <div className="mt-2 w-full max-w-sm space-y-1.5 text-left">
-          {result.distribution.map((d) => (
-            <div key={d.title}>
-              <div className="flex justify-between text-xs">
-                <span>{d.title}</span>
-                <span>{d.pct}%</span>
+        {result.showProbabilityBar && result.distribution.length > 0 && (
+          <div className="mt-2 w-full max-w-sm space-y-1.5 text-left">
+            {result.distribution.map((d) => (
+              <div key={d.title}>
+                <div className="flex justify-between text-xs">
+                  <span>{d.title}</span>
+                  <span>{d.pct}%</span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                  <div className="h-full bg-primary" style={{ width: `${d.pct}%` }} />
+                </div>
               </div>
-              <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-                <div className="h-full bg-primary" style={{ width: `${d.pct}%` }} />
+            ))}
+          </div>
+        )}
+        <p className="pt-2 text-xs text-muted-foreground">เล่นที่ Quibby</p>
+      </div>
+
+      {toast && <p className="text-sm text-muted-foreground">{toast}</p>}
+
+      <div className="mt-2 flex items-center gap-2">
+        <Button onClick={saveImage} disabled={savingImg}>
+          {savingImg ? "กำลังบันทึก…" : "บันทึกรูปผลลัพธ์"}
+        </Button>
+
+        {/* ปุ่มแชร์เดียว → เลือกแพลตฟอร์ม */}
+        <div className="relative">
+          <Button variant="outline" onClick={() => setShareOpen((v) => !v)}>
+            แชร์ ▾
+          </Button>
+          {shareOpen && (
+            <>
+              <button
+                className="fixed inset-0 z-10 cursor-default"
+                aria-label="ปิด"
+                onClick={() => setShareOpen(false)}
+              />
+              <div className="absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-lg border bg-background shadow-md">
+                {typeof navigator !== "undefined" && "share" in navigator && (
+                  <MenuItem label="แชร์ผ่านระบบ…" onClick={nativeShare} />
+                )}
+                <MenuItem label="LINE" onClick={() => openLink(links.line)} />
+                <MenuItem label="Facebook" onClick={() => openLink(links.facebook)} />
+                <MenuItem label="X (Twitter)" onClick={() => openLink(links.x)} />
+                <MenuItem label="Discord (คัดลอกลิงก์)" onClick={copyLink} />
+                <MenuItem label="คัดลอกลิงก์" onClick={copyLink} />
               </div>
-            </div>
-          ))}
+            </>
+          )}
         </div>
-      )}
-
-      <div className="mt-4 flex flex-wrap justify-center gap-2">
-        <Button variant="outline" size="sm" onClick={nativeShare}>
-          แชร์
-        </Button>
-        <ShareLink href={links.line} label="LINE" />
-        <ShareLink href={links.facebook} label="Facebook" />
-        <ShareLink href={links.x} label="X" />
-        <Button variant="outline" size="sm" onClick={copyLink}>
-          {copied ? "คัดลอกแล้ว ✓" : "คัดลอกลิงก์"}
-        </Button>
       </div>
     </div>
   );
 }
 
-function ShareLink({ href, label }: { href: string; label: string }) {
+function MenuItem({ label, onClick }: { label: string; onClick: () => void }) {
   return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="inline-flex h-8 items-center rounded-lg border px-3 text-sm hover:bg-muted"
+    <button
+      onClick={onClick}
+      className="block w-full px-3 py-2 text-left text-sm hover:bg-muted"
     >
       {label}
-    </a>
+    </button>
   );
 }

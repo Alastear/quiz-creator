@@ -201,9 +201,29 @@ export const plays = pgTable("plays", {
     .defaultNow(),
 });
 
+// ---- media ที่อัปโหลด (ติดตามโควตา/ความเป็นเจ้าของ; DESIGN.md ข้อ 7, 12.1) ----
+export const mediaSource = pgEnum("media_source", ["upload", "link"]);
+
+export const media = pgTable("media", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  ownerId: uuid("owner_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  kind: mediaType("kind").notNull(), // image | audio | video
+  source: mediaSource("source").notNull().default("upload"),
+  url: text("url").notNull(), // URL ที่เอาไปแสดง
+  pathname: text("pathname"), // key ใน storage ไว้ลบ
+  mime: text("mime"),
+  sizeBytes: integer("size_bytes").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Consent = typeof consents.$inferSelect;
+export type Media = typeof media.$inferSelect;
 export type Quiz = typeof quizzes.$inferSelect;
 export type Question = typeof questions.$inferSelect;
 export type Choice = typeof choices.$inferSelect;

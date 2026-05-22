@@ -14,11 +14,16 @@ export const choiceDraftSchema = z.object({
   points: z.number().int().min(0).max(1000).default(0),
 });
 
+export const questionKindSchema = z.enum(["choice", "text", "story"]);
+
 export const questionDraftSchema = z.object({
-  promptText: z.string().trim().min(1, "ใส่คำถาม").max(1000),
+  kind: questionKindSchema.default("choice"),
+  // story = เนื้อเรื่อง, text = โจทย์ให้พิมพ์ตอบ, choice = คำถามมีตัวเลือก
+  promptText: z.string().trim().min(1, "ใส่เนื้อหา").max(4000),
   mediaType: mediaTypeSchema.default("none"),
   mediaUrl: mediaUrlSchema,
-  choices: z.array(choiceDraftSchema).min(1).max(6),
+  // มีตัวเลือกเฉพาะ kind=choice (text/story เป็น array ว่างได้)
+  choices: z.array(choiceDraftSchema).max(6).default([]),
 });
 
 export const resultDraftSchema = z.object({
@@ -32,10 +37,21 @@ export const resultDraftSchema = z.object({
   scoreMax: z.number().int().nullable().optional(),
 });
 
+export const quizCategorySchema = z.enum([
+  "personality",
+  "love",
+  "work",
+  "knowledge",
+  "popculture",
+  "lifestyle",
+  "other",
+]);
+
 export const quizDraftSchema = z.object({
   title: z.string().trim().min(1, "ใส่ชื่อ quiz").max(200),
   description: z.string().trim().max(2000).optional(),
   coverImageUrl: z.string().trim().max(2000).optional(),
+  category: quizCategorySchema.default("other"),
   resultLogic: z.enum(["archetype", "range"]),
   theme: z.object({ fontFamily: z.string().optional() }).default({}),
   settings: z

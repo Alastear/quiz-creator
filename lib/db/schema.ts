@@ -103,6 +103,22 @@ export const quizStatus = pgEnum("quiz_status", [
   "expired",
   "archived",
 ]);
+// ประเภท segment ในคำถาม (DESIGN.md) — choice=เลือกตอบ, text=พิมพ์ตอบ, story=เล่าเรื่อง
+export const questionKind = pgEnum("question_kind", [
+  "choice",
+  "text",
+  "story",
+]);
+// หมวดหมู่ quiz สำหรับหน้า discovery
+export const quizCategory = pgEnum("quiz_category", [
+  "personality",
+  "love",
+  "work",
+  "knowledge",
+  "popculture",
+  "lifestyle",
+  "other",
+]);
 // media แบบ inline (Phase 2 รองรับ url/ลิงก์ก่อน, Phase 3 เพิ่มอัปโหลด)
 export const mediaType = pgEnum("media_type", [
   "none",
@@ -121,6 +137,7 @@ export const quizzes = pgTable("quizzes", {
   description: text("description"),
   coverImageUrl: text("cover_image_url"),
   resultLogic: resultLogic("result_logic").notNull().default("archetype"),
+  category: quizCategory("category").notNull().default("other"),
   status: quizStatus("status").notNull().default("draft"),
   theme: jsonb("theme")
     .$type<{ fontFamily?: string; accent?: string }>()
@@ -145,6 +162,7 @@ export const questions = pgTable("questions", {
     .notNull()
     .references(() => quizzes.id, { onDelete: "cascade" }),
   orderIndex: integer("order_index").notNull().default(0),
+  kind: questionKind("kind").notNull().default("choice"),
   promptText: text("prompt_text").notNull(),
   mediaType: mediaType("media_type").notNull().default("none"),
   mediaUrl: text("media_url"),

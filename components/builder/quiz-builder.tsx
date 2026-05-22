@@ -12,6 +12,18 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MediaInput } from "@/components/builder/media-input";
 import { FontPicker } from "@/components/builder/font-picker";
+import { QUIZ_CATEGORIES } from "@/lib/categories";
+
+const KIND_LABEL: Record<string, string> = {
+  choice: "เลือกตอบ",
+  text: "พิมพ์ตอบ",
+  story: "เล่าเรื่อง",
+};
+const PROMPT_LABEL: Record<string, string> = {
+  choice: "คำถาม",
+  text: "โจทย์ (ผู้เล่นจะพิมพ์ตอบ)",
+  story: "เนื้อเรื่อง",
+};
 
 type Props = {
   quizId: string;
@@ -136,21 +148,38 @@ export function QuizBuilder({ quizId, publicId, status, initial }: Props) {
               }
             />
           </Field>
-          <Field label="โหมดผลลัพธ์">
-            <select
-              className="h-9 rounded-md border bg-background px-2 text-sm"
-              value={draft.resultLogic}
-              onChange={(e) =>
-                update(
-                  (d) =>
-                    void (d.resultLogic = e.target.value as "archetype" | "range"),
-                )
-              }
-            >
-              <option value="archetype">ทายนิสัย (คะแนนสูงสุดชนะ)</option>
-              <option value="range">ช่วงคะแนน (รวมแต้ม)</option>
-            </select>
-          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="หมวดหมู่">
+              <select
+                className="h-9 rounded-md border bg-background px-2 text-sm"
+                value={draft.category}
+                onChange={(e) =>
+                  update((d) => void (d.category = e.target.value as typeof d.category))
+                }
+              >
+                {QUIZ_CATEGORIES.map((c) => (
+                  <option key={c.key} value={c.key}>
+                    {c.emoji} {c.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="โหมดผลลัพธ์">
+              <select
+                className="h-9 rounded-md border bg-background px-2 text-sm"
+                value={draft.resultLogic}
+                onChange={(e) =>
+                  update(
+                    (d) =>
+                      void (d.resultLogic = e.target.value as "archetype" | "range"),
+                  )
+                }
+              >
+                <option value="archetype">ทายนิสัย (คะแนนสูงสุดชนะ)</option>
+                <option value="range">ช่วงคะแนน (รวมแต้ม)</option>
+              </select>
+            </Field>
+          </div>
           <Field label="ฟอนต์">
             <FontPicker
               value={draft.theme.fontFamily ?? "sarabun"}
@@ -279,6 +308,9 @@ export function QuizBuilder({ quizId, publicId, status, initial }: Props) {
             <div key={qi} className="rounded-md border p-3 space-y-3">
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">ข้อ {qi + 1}</span>
+                <span className="rounded-full border px-2 py-0.5 text-xs">
+                  {KIND_LABEL[q.kind]}
+                </span>
                 <div className="ml-auto flex gap-1">
                   <Button size="sm" variant="ghost" disabled={qi === 0}
                     onClick={() => update((d) => { const [m] = d.questions.splice(qi, 1); d.questions.splice(qi - 1, 0, m); })}>↑</Button>
@@ -288,16 +320,27 @@ export function QuizBuilder({ quizId, publicId, status, initial }: Props) {
                     onClick={() => update((d) => void d.questions.splice(qi, 1))}>ลบ</Button>
                 </div>
               </div>
-              <Input
-                value={q.promptText}
-                placeholder="คำถาม"
-                onChange={(e) =>
-                  update((d) => void (d.questions[qi].promptText = e.target.value))
-                }
-              />
+              {q.kind === "story" ? (
+                <textarea
+                  className="min-h-24 w-full rounded-md border bg-background p-2 text-sm"
+                  value={q.promptText}
+                  placeholder={PROMPT_LABEL[q.kind]}
+                  onChange={(e) =>
+                    update((d) => void (d.questions[qi].promptText = e.target.value))
+                  }
+                />
+              ) : (
+                <Input
+                  value={q.promptText}
+                  placeholder={PROMPT_LABEL[q.kind]}
+                  onChange={(e) =>
+                    update((d) => void (d.questions[qi].promptText = e.target.value))
+                  }
+                />
+              )}
               <MediaInput
                 value={q.mediaUrl ?? ""}
-                placeholder="รูปประกอบคำถาม (ไม่บังคับ)"
+                placeholder="รูปประกอบ (ไม่บังคับ)"
                 onChange={(url) =>
                   update((d) => {
                     d.questions[qi].mediaUrl = url;
@@ -306,6 +349,18 @@ export function QuizBuilder({ quizId, publicId, status, initial }: Props) {
                 }
               />
 
+              {q.kind === "text" && (
+                <p className="pl-1 text-xs text-muted-foreground">
+                  ผู้เล่นจะพิมพ์คำตอบเอง (เก็บไว้ดูเฉย ๆ ไม่คิดคะแนน)
+                </p>
+              )}
+              {q.kind === "story" && (
+                <p className="pl-1 text-xs text-muted-foreground">
+                  หน้าเล่าเรื่อง มีแค่ปุ่ม “ถัดไป” ไม่มีคำตอบ
+                </p>
+              )}
+
+              {q.kind === "choice" && (
               <div className="space-y-2 pl-3">
                 {q.choices.map((c, ci) => (
                   <div key={ci} className="rounded border bg-muted/30 p-2 space-y-2">
@@ -370,27 +425,63 @@ export function QuizBuilder({ quizId, publicId, status, initial }: Props) {
                   + ตัวเลือก
                 </Button>
               </div>
+              )}
             </div>
           ))}
-          <Button
-            variant="outline"
-            className="w-full"
-            disabled={draft.questions.length >= 50}
-            onClick={() =>
-              update((d) =>
-                void d.questions.push({
-                  promptText: "คำถามใหม่",
-                  mediaType: "none",
-                  choices: [
-                    { labelText: "ตัวเลือก 1", mediaType: "none", scoreMap: {}, points: 0 },
-                    { labelText: "ตัวเลือก 2", mediaType: "none", scoreMap: {}, points: 0 },
-                  ],
-                }),
-              )
-            }
-          >
-            + เพิ่มคำถาม
-          </Button>
+          {/* เพิ่ม segment ตามประเภท */}
+          <div className="grid grid-cols-3 gap-2">
+            <Button
+              variant="outline"
+              disabled={draft.questions.length >= 50}
+              onClick={() =>
+                update((d) =>
+                  void d.questions.push({
+                    kind: "choice",
+                    promptText: "คำถามใหม่",
+                    mediaType: "none",
+                    choices: [
+                      { labelText: "ตัวเลือก 1", mediaType: "none", scoreMap: {}, points: 0 },
+                      { labelText: "ตัวเลือก 2", mediaType: "none", scoreMap: {}, points: 0 },
+                    ],
+                  }),
+                )
+              }
+            >
+              + คำถามเลือกตอบ
+            </Button>
+            <Button
+              variant="outline"
+              disabled={draft.questions.length >= 50}
+              onClick={() =>
+                update((d) =>
+                  void d.questions.push({
+                    kind: "text",
+                    promptText: "พิมพ์คำถามที่ให้ผู้เล่นตอบ",
+                    mediaType: "none",
+                    choices: [],
+                  }),
+                )
+              }
+            >
+              + พิมพ์ตอบ
+            </Button>
+            <Button
+              variant="outline"
+              disabled={draft.questions.length >= 50}
+              onClick={() =>
+                update((d) =>
+                  void d.questions.push({
+                    kind: "story",
+                    promptText: "เล่าเรื่องราวตรงนี้…",
+                    mediaType: "none",
+                    choices: [],
+                  }),
+                )
+              }
+            >
+              + เล่าเรื่อง
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>

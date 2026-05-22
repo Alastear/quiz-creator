@@ -80,6 +80,7 @@ export default async function PlayPage({
   // ส่งเฉพาะข้อมูลที่ปลอดภัยต่อ public (ไม่ส่ง scoreMap/points)
   const playQuestions = qs.map((q) => ({
     id: q.id,
+    kind: q.kind,
     promptText: q.promptText,
     mediaUrl: q.mediaUrl,
     choices: cs

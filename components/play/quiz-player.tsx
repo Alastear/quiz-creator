@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 type PlayChoice = { id: string; labelText: string; mediaUrl: string | null };
 type PlayQuestion = {
   id: string;
+  kind: "choice" | "text" | "story";
   promptText: string;
   mediaUrl: string | null;
   choices: PlayChoice[];
@@ -33,23 +34,29 @@ export function QuizPlayer({
 }: Props) {
   const [phase, setPhase] = useState<"cover" | "playing" | "result">("cover");
   const [index, setIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
+  // เก็บคำตอบ: choice → {choiceId}, text → {text}
+  const [answers, setAnswers] = useState<
+    Record<string, { choiceId?: string; text?: string }>
+  >({});
+  const [textVal, setTextVal] = useState("");
   const [result, setResult] = useState<PlayResult | null>(null);
   const [pending, startTransition] = useTransition();
 
   const font =
     QUIZ_FONTS[(fontKey as QuizFontKey) in QUIZ_FONTS ? (fontKey as QuizFontKey) : "sarabun"];
 
-  function choose(questionId: string, choiceId: string) {
-    const next = { ...answers, [questionId]: choiceId };
+  // บันทึกคำตอบ (ถ้ามี) แล้วไปต่อ; ถ้าเป็นข้อสุดท้าย → ส่ง
+  function advance(answer?: { choiceId?: string; text?: string }) {
+    const q = questions[index];
+    const next = answer ? { ...answers, [q.id]: answer } : answers;
     setAnswers(next);
+    setTextVal("");
     if (index + 1 < questions.length) {
       setIndex(index + 1);
     } else {
-      // ข้อสุดท้าย → ส่งคำตอบ
-      const payload = Object.entries(next).map(([qid, cid]) => ({
+      const payload = Object.entries(next).map(([qid, a]) => ({
         questionId: qid,
-        choiceId: cid,
+        ...a,
       }));
       startTransition(async () => {
         const r = await submitPlay(publicId, payload);
@@ -92,7 +99,9 @@ export function QuizPlayer({
           <p className="text-sm text-muted-foreground">
             ข้อ {index + 1} / {questions.length}
           </p>
-          <h2 className="text-xl font-semibold">{questions[index].promptText}</h2>
+          <h2 className="whitespace-pre-line text-xl font-semibold">
+            {questions[index].promptText}
+          </h2>
           {questions[index].mediaUrl && (
             <img
               src={questions[index].mediaUrl!}
@@ -100,22 +109,52 @@ export function QuizPlayer({
               className="max-h-56 w-auto self-center rounded-lg object-cover"
             />
           )}
-          <div className="flex flex-col gap-2">
-            {questions[index].choices.map((c) => (
+
+          {/* choice */}
+          {questions[index].kind === "choice" && (
+            <div className="flex flex-col gap-2">
+              {questions[index].choices.map((c) => (
+                <Button
+                  key={c.id}
+                  variant="outline"
+                  className="h-auto justify-start whitespace-normal py-3 text-left"
+                  disabled={pending}
+                  onClick={() => advance({ choiceId: c.id })}
+                >
+                  {c.mediaUrl && (
+                    <img src={c.mediaUrl} alt="" className="mr-2 h-10 w-10 rounded object-cover" />
+                  )}
+                  {c.labelText}
+                </Button>
+              ))}
+            </div>
+          )}
+
+          {/* text */}
+          {questions[index].kind === "text" && (
+            <div className="flex flex-col gap-3">
+              <textarea
+                className="min-h-24 w-full rounded-md border bg-background p-3 text-base"
+                placeholder="พิมพ์คำตอบของคุณ…"
+                value={textVal}
+                onChange={(e) => setTextVal(e.target.value)}
+              />
               <Button
-                key={c.id}
-                variant="outline"
-                className="h-auto justify-start whitespace-normal py-3 text-left"
+                size="lg"
                 disabled={pending}
-                onClick={() => choose(questions[index].id, c.id)}
+                onClick={() => advance(textVal.trim() ? { text: textVal.trim() } : undefined)}
               >
-                {c.mediaUrl && (
-                  <img src={c.mediaUrl} alt="" className="mr-2 h-10 w-10 rounded object-cover" />
-                )}
-                {c.labelText}
+                {index + 1 < questions.length ? "ถัดไป" : "ดูผลลัพธ์"}
               </Button>
-            ))}
-          </div>
+            </div>
+          )}
+
+          {/* story */}
+          {questions[index].kind === "story" && (
+            <Button size="lg" disabled={pending} onClick={() => advance()}>
+              {index + 1 < questions.length ? "ถัดไป" : "ดูผลลัพธ์"}
+            </Button>
+          )}
         </div>
       )}
 

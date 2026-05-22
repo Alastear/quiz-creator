@@ -97,9 +97,10 @@ export function computeResult(
 }
 
 // ---- validation ก่อน publish (DESIGN.md ข้อ 5) ----
+export type QuestionKind = "choice" | "text" | "story";
 export type ValidationInput = {
   logic: ResultLogic;
-  questions: { choices: ScoringChoice[] }[];
+  questions: { kind: QuestionKind; choices: ScoringChoice[] }[];
   results: ScoringResult[];
 };
 
@@ -107,17 +108,21 @@ export function validateForPublish(input: ValidationInput): string[] {
   const errors: string[] = [];
   const { logic, questions, results } = input;
 
-  if (questions.length < 1) errors.push("ต้องมีคำถามอย่างน้อย 1 ข้อ");
+  const choiceQuestions = questions.filter((q) => q.kind === "choice");
+
+  if (choiceQuestions.length < 1)
+    errors.push("ต้องมีคำถามแบบเลือกตอบอย่างน้อย 1 ข้อ");
   if (results.length < 2) errors.push("ต้องมีผลลัพธ์อย่างน้อย 2 แบบ");
+  // เฉพาะ segment แบบ choice ที่ต้องมีตัวเลือก ≥ 2
   for (const [i, q] of questions.entries()) {
-    if (q.choices.length < 2)
+    if (q.kind === "choice" && q.choices.length < 2)
       errors.push(`คำถามข้อ ${i + 1} ต้องมีตัวเลือกอย่างน้อย 2 ตัว`);
   }
 
   if (logic === "archetype") {
     // ทุก result ต้องมีโอกาสได้คะแนนอย่างน้อย 1 ทาง
     const reachable = new Set<string>();
-    for (const q of questions)
+    for (const q of choiceQuestions)
       for (const c of q.choices)
         for (const [key, pts] of Object.entries(c.scoreMap ?? {}))
           if (pts > 0) reachable.add(key);

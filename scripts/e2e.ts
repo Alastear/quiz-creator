@@ -78,6 +78,11 @@ async function main() {
   await page.locator('input[type=file]').first().setInputFiles("/tmp/quibby-test.png");
   await page.waitForSelector('img[src*="/api/media/"]', { timeout: 10000 });
   log("uploaded cover image ✓");
+
+  // 3.6) เพิ่ม segment แบบ story + text
+  await page.getByRole("button", { name: "+ เล่าเรื่อง" }).click();
+  await page.getByRole("button", { name: "+ พิมพ์ตอบ" }).click();
+  log("added story + text segments ✓");
   await page.screenshot({ path: "/tmp/quibby-builder.png", fullPage: true });
 
   // 4) publish (ข้อมูล seed ผ่าน validation อยู่แล้ว)
@@ -93,19 +98,26 @@ async function main() {
   // 5) play
   await page.goto(`${BASE}${openHref}`);
   await page.getByRole("button", { name: /เริ่มทำแบบทดสอบ/ }).click();
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < 20; i++) {
     if (await page.getByText("ผลลัพธ์ของคุณคือ").isVisible().catch(() => false))
       break;
+    const textarea = page.locator("textarea").first();
     const choice = page
       .getByRole("button")
       .filter({ hasText: /ตัวเลือก|อยู่บ้าน|ออกไป/ })
       .first();
-    if (await choice.isVisible().catch(() => false)) {
+    const nextBtn = page
+      .getByRole("button", { name: /ถัดไป|ดูผลลัพธ์/ })
+      .first();
+    if (await textarea.isVisible().catch(() => false)) {
+      await textarea.fill("คำตอบทดสอบ");
+      await nextBtn.click();
+    } else if (await choice.isVisible().catch(() => false)) {
       await choice.click();
-      await page.waitForTimeout(600);
-    } else {
-      await page.waitForTimeout(400);
+    } else if (await nextBtn.isVisible().catch(() => false)) {
+      await nextBtn.click();
     }
+    await page.waitForTimeout(500);
   }
   const gotResult = await page.getByText("ผลลัพธ์ของคุณคือ").isVisible();
   if (!gotResult) throw new Error("ไม่ถึงหน้าผลลัพธ์");
@@ -126,6 +138,17 @@ async function main() {
     throw new Error("share menu ไม่มี LINE");
   log("share menu เปิด + มี LINE/Facebook/X ✓");
   await page.screenshot({ path: "/tmp/quibby-result.png", fullPage: true });
+
+  // 8) discovery homepage — ค้นหา quiz ที่เพิ่งเผยแพร่
+  await page.goto(`${BASE}/?q=${encodeURIComponent("Quiz ทดสอบ")}`);
+  const card = page
+    .getByRole("link")
+    .filter({ hasText: "Quiz ทดสอบจาก e2e" })
+    .first();
+  if (!(await card.isVisible().catch(() => false)))
+    throw new Error("ไม่พบ quiz ในหน้า discovery");
+  log("discovery: ค้นหาเจอ quiz ที่เผยแพร่ ✓");
+  await page.screenshot({ path: "/tmp/quibby-home.png", fullPage: true });
 
   await browser.close();
   console.log("\n✅ e2e ครบ flow ผ่านทั้งหมด");

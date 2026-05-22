@@ -21,7 +21,7 @@ export type PlayResult = {
  */
 export async function submitPlay(
   publicId: string,
-  answers: { questionId: string; choiceId: string }[],
+  answers: { questionId: string; choiceId?: string; text?: string }[],
 ): Promise<PlayResult> {
   const [quiz] = await db
     .select()
@@ -57,10 +57,15 @@ export async function submitPlay(
   const chosen: ScoringChoice[] = [];
   const cleanAnswers: Record<string, string> = {};
   for (const a of answers) {
-    const c = choiceById.get(a.choiceId);
-    if (c && c.questionId === a.questionId && qIds.has(a.questionId)) {
-      chosen.push({ scoreMap: c.scoreMap, points: c.points });
-      cleanAnswers[a.questionId] = a.choiceId;
+    if (a.choiceId) {
+      const c = choiceById.get(a.choiceId);
+      if (c && c.questionId === a.questionId && qIds.has(a.questionId)) {
+        chosen.push({ scoreMap: c.scoreMap, points: c.points });
+        cleanAnswers[a.questionId] = a.choiceId;
+      }
+    } else if (a.text && qIds.has(a.questionId)) {
+      // text answer: เก็บไว้ดู ไม่คิดคะแนน (จำกัดความยาวกัน abuse)
+      cleanAnswers[a.questionId] = a.text.slice(0, 1000);
     }
   }
 

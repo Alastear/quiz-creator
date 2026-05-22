@@ -52,6 +52,7 @@ export default async function CreatePage({
     title: quiz.title,
     description: quiz.description ?? undefined,
     coverImageUrl: quiz.coverImageUrl ?? undefined,
+    category: quiz.category,
     resultLogic: quiz.resultLogic === "range" ? "range" : "archetype",
     theme: quiz.theme ?? {},
     settings: quiz.settings ?? {},
@@ -66,6 +67,7 @@ export default async function CreatePage({
       scoreMax: r.scoreMax,
     })),
     questions: qs.map((q) => ({
+      kind: q.kind,
       promptText: q.promptText,
       mediaType: q.mediaType,
       mediaUrl: q.mediaUrl ?? undefined,

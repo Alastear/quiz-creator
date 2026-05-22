@@ -87,6 +87,7 @@ export async function saveQuiz(
         title: d.title,
         description: d.description ?? null,
         coverImageUrl: d.coverImageUrl || null,
+        category: d.category,
         resultLogic: d.resultLogic,
         theme: d.theme,
         settings: d.settings,
@@ -120,13 +121,15 @@ export async function saveQuiz(
         .values({
           quizId,
           orderIndex: qi,
+          kind: q.kind,
           promptText: q.promptText,
           mediaType: q.mediaType,
           mediaUrl: q.mediaUrl || null,
         })
         .returning({ id: questions.id });
 
-      if (q.choices.length) {
+      // เก็บตัวเลือกเฉพาะ segment แบบ choice
+      if (q.kind === "choice" && q.choices.length) {
         await tx.insert(choices).values(
           q.choices.map((c, ci) => ({
             questionId: inserted.id,
@@ -169,6 +172,7 @@ export async function publishQuiz(
   const errors = validateForPublish({
     logic: quiz.resultLogic as "archetype" | "range",
     questions: qs.map((q) => ({
+      kind: q.kind as "choice" | "text" | "story",
       choices: (choicesByQ.get(q.id) ?? []).map((c) => ({
         scoreMap: c.scoreMap,
         points: c.points,

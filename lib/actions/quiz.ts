@@ -10,6 +10,7 @@ import { getActor } from "@/lib/auth-helpers";
 import { quizDraftSchema, type QuizDraft } from "@/lib/validation/quiz";
 import { validateForPublish, type ScoringResult } from "@/lib/scoring";
 import { canPublishQuiz, quizExpiry } from "@/lib/entitlements";
+import { restoreArchivedQuiz } from "@/lib/lifecycle";
 
 /** โหลด quiz ที่ user เป็นเจ้าของ (กัน IDOR) */
 async function getOwnedQuiz(quizId: string, ownerId: string) {
@@ -221,4 +222,18 @@ export async function deleteQuiz(quizId: string) {
   await db.delete(quizzes).where(eq(quizzes.id, quizId));
   revalidatePath("/dashboard");
   redirect("/dashboard");
+}
+
+/** เผยแพร่ซ้ำ (ใช้กับ quiz ที่หมดอายุ) — wrapper คืน void สำหรับใช้เป็น form action */
+export async function republishQuizAction(quizId: string): Promise<void> {
+  await publishQuiz(quizId);
+  revalidatePath("/dashboard");
+}
+
+/** กู้คืน quiz ที่ถูก archive → กลับเป็น draft แล้วเปิดหน้า builder */
+export async function restoreQuiz(quizId: string) {
+  const user = await getActor();
+  const res = await restoreArchivedQuiz(quizId, user.id);
+  revalidatePath("/dashboard");
+  if (res.ok) redirect(`/create/${quizId}`);
 }

@@ -4,7 +4,7 @@ import { signOut } from "@/auth";
 import { db } from "@/lib/db";
 import { quizzes } from "@/lib/db/schema";
 import { requireUser } from "@/lib/auth-helpers";
-import { createQuiz } from "@/lib/actions/quiz";
+import { createQuiz, republishQuizAction, restoreQuiz } from "@/lib/actions/quiz";
 import { FREE_ACTIVE_QUIZ_LIMIT } from "@/lib/entitlements";
 import { kanit } from "@/lib/fonts";
 import { Button } from "@/components/ui/button";
@@ -85,13 +85,28 @@ export default async function DashboardPage() {
                 เปิดดู
               </Button>
             )}
-            <Button
-              size="sm"
-              variant="outline"
-              render={<Link href={`/create/${q.id}`} />}
-            >
-              แก้ไข
-            </Button>
+            {q.status === "expired" && (
+              <form action={republishQuizAction.bind(null, q.id)}>
+                <Button size="sm" type="submit">
+                  เผยแพร่อีกครั้ง
+                </Button>
+              </form>
+            )}
+            {q.status === "archived" ? (
+              <form action={restoreQuiz.bind(null, q.id)}>
+                <Button size="sm" type="submit">
+                  กู้คืน
+                </Button>
+              </form>
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                render={<Link href={`/create/${q.id}`} />}
+              >
+                แก้ไข
+              </Button>
+            )}
           </li>
         ))}
       </ul>

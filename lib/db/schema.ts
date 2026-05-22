@@ -238,10 +238,33 @@ export const media = pgTable("media", {
     .defaultNow(),
 });
 
+// ---- quiz ที่หมดอายุถูก archive (DESIGN.md ข้อ 9) ----
+// เก็บเนื้อหาทั้งก้อนเป็น JSON + ลบ rows ลูก (questions/choices/results/plays) เพื่อประหยัดพื้นที่
+// (prod ย้ายไป Blob ได้ภายหลัง; ตอนนี้เก็บใน jsonb เพื่อความเรียบง่าย)
+export const quizArchives = pgTable("quiz_archives", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  quizId: uuid("quiz_id")
+    .notNull()
+    .references(() => quizzes.id, { onDelete: "cascade" }),
+  ownerId: uuid("owner_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  data: jsonb("data").notNull(), // { quiz, questions, choices, results }
+  statsSnapshot: jsonb("stats_snapshot")
+    .$type<{ viewCount: number; playCount: number; resultBreakdown?: Record<string, number> }>()
+    .notNull()
+    .default({ viewCount: 0, playCount: 0 }),
+  archivedAt: timestamp("archived_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  restorableUntil: timestamp("restorable_until", { withTimezone: true }).notNull(),
+});
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Consent = typeof consents.$inferSelect;
 export type Media = typeof media.$inferSelect;
+export type QuizArchive = typeof quizArchives.$inferSelect;
 export type Quiz = typeof quizzes.$inferSelect;
 export type Question = typeof questions.$inferSelect;
 export type Choice = typeof choices.$inferSelect;

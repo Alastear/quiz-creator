@@ -39,6 +39,13 @@ export async function POST(req: Request) {
       { status: 415 },
     );
 
+  // ตอนนี้เปิดให้อัปโหลดเฉพาะรูปภาพ (เสียง/วิดีโอจะเปิดให้ใช้ภายหลัง)
+  if (kind !== "image")
+    return NextResponse.json(
+      { error: "ตอนนี้รองรับเฉพาะรูปภาพ (เสียง/วิดีโอจะเปิดให้ใช้ภายหลัง)" },
+      { status: 415 },
+    );
+
   const max = maxFileSize(kind, user.plan);
   if (file.size > max)
     return NextResponse.json(

@@ -36,6 +36,13 @@
       "when": 1779490444526,
       "tag": "0004_striped_madame_web",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1779491179336,
+      "tag": "0005_lazy_professor_monster",
+      "breakpoints": true
     }
   ]
 }

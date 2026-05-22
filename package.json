@@ -14,7 +14,8 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "test:scoring": "node --experimental-strip-types scripts/test-scoring.ts",
-    "e2e": "tsx scripts/e2e.ts"
+    "e2e": "tsx scripts/e2e.ts",
+    "cron": "tsx --env-file=.env.local scripts/cron-lifecycle.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.2",

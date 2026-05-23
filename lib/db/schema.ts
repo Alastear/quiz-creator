@@ -25,6 +25,7 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   emailVerified: timestamp("email_verified", { withTimezone: true }),
   image: text("image"),
+  passwordHash: text("password_hash"), // null สำหรับผู้ใช้ที่ล็อกอินด้วย Google
   // Quibby
   role: userRole("role").notNull().default("user"),
   status: userStatus("status").notNull().default("active"),

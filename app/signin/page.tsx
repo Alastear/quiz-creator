@@ -1,9 +1,7 @@
-import { signIn } from "@/auth";
+import Link from "next/link";
 import { env } from "@/lib/env";
 import { kanit } from "@/lib/fonts";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { LoginForm, GoogleButton } from "@/components/auth/auth-forms";
 import {
   Card,
   CardContent,
@@ -14,24 +12,14 @@ import {
 
 const googleEnabled = Boolean(env.AUTH_GOOGLE_ID && env.AUTH_GOOGLE_SECRET);
 
+export const metadata = { title: "เข้าสู่ระบบ · Quibby" };
+
 export default async function SignInPage({
   searchParams,
 }: {
-  searchParams: Promise<{ callbackUrl?: string }>;
+  searchParams: Promise<{ callbackUrl?: string; verified?: string; error?: string }>;
 }) {
-  const { callbackUrl = "/dashboard" } = await searchParams;
-
-  async function emailSignIn(formData: FormData) {
-    "use server";
-    const email = String(formData.get("email") ?? "").trim();
-    if (!email) return;
-    await signIn("nodemailer", { email, redirectTo: callbackUrl });
-  }
-
-  async function googleSignIn() {
-    "use server";
-    await signIn("google", { redirectTo: callbackUrl });
-  }
+  const { callbackUrl = "/dashboard", verified, error } = await searchParams;
 
   return (
     <main className="flex flex-1 items-center justify-center px-6 py-16">
@@ -40,29 +28,22 @@ export default async function SignInPage({
           <CardTitle className={`${kanit.className} text-2xl`}>
             เข้าสู่ระบบ Quibby
           </CardTitle>
-          <CardDescription>
-            สมัครหรือเข้าสู่ระบบเพื่อเริ่มสร้าง quiz ของคุณ
-          </CardDescription>
+          <CardDescription>ยินดีต้อนรับกลับมา</CardDescription>
         </CardHeader>
 
         <CardContent className="flex flex-col gap-4">
-          <form action={emailSignIn} className="flex flex-col gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="email">อีเมล</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                inputMode="email"
-                autoComplete="email"
-                placeholder="you@example.com"
-                required
-              />
-            </div>
-            <Button type="submit" className="w-full">
-              ส่งลิงก์เข้าสู่ระบบทางอีเมล
-            </Button>
-          </form>
+          {verified && (
+            <p className="rounded-md border border-green-500/40 bg-green-500/10 p-2 text-center text-sm">
+              ยืนยันอีเมลแล้ว เข้าสู่ระบบได้เลย ✓
+            </p>
+          )}
+          {error === "verify" && (
+            <p className="rounded-md border border-destructive/40 bg-destructive/5 p-2 text-center text-sm text-destructive">
+              ลิงก์ยืนยันไม่ถูกต้องหรือหมดอายุ
+            </p>
+          )}
+
+          <LoginForm callbackUrl={callbackUrl} />
 
           {googleEnabled && (
             <>
@@ -71,23 +52,21 @@ export default async function SignInPage({
                 หรือ
                 <span className="h-px flex-1 bg-border" />
               </div>
-              <form action={googleSignIn}>
-                <Button type="submit" variant="outline" className="w-full">
-                  เข้าสู่ระบบด้วย Google
-                </Button>
-              </form>
+              <GoogleButton callbackUrl={callbackUrl} />
             </>
           )}
 
-          <p className="text-center text-xs text-muted-foreground">
-            การเข้าสู่ระบบถือว่ายอมรับเงื่อนไขการใช้งาน
-            <br />
-            เราจะขอความยินยอม PDPA ก่อนเริ่มใช้งาน
+          <p className="text-center text-sm text-muted-foreground">
+            ยังไม่มีบัญชี?{" "}
+            <Link
+              href={`/register?callbackUrl=${encodeURIComponent(callbackUrl)}`}
+              className="text-primary underline"
+            >
+              สมัครสมาชิก
+            </Link>
           </p>
         </CardContent>
       </Card>
     </main>
   );
 }
-
-export const metadata = { title: "เข้าสู่ระบบ · Quibby" };

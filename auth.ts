@@ -1,8 +1,10 @@
 import NextAuth, { type DefaultSession } from "next-auth";
 import type { Provider } from "next-auth/providers";
 import Google from "next-auth/providers/google";
-import Nodemailer from "next-auth/providers/nodemailer";
+import Credentials from "next-auth/providers/credentials";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
+import { eq } from "drizzle-orm";
+import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import {
   users,
@@ -11,9 +13,7 @@ import {
   verificationTokens,
 } from "@/lib/db/schema";
 import { env } from "@/lib/env";
-import { emailer } from "@/lib/email";
 
-// ขยาย type ของ session ให้มี id/role/status/plan (DESIGN.md ข้อ 8/11)
 declare module "next-auth" {
   interface Session {
     user: {
@@ -27,31 +27,32 @@ declare module "next-auth" {
 
 const providers: Provider[] = [];
 
-// Google เปิดเฉพาะเมื่อมี credentials (local ที่ไม่ตั้งไว้ → ใช้ magic link แทนได้)
 if (env.AUTH_GOOGLE_ID && env.AUTH_GOOGLE_SECRET) {
   providers.push(Google);
 }
 
-// Magic link — ส่งผ่าน emailer adapter (dev: console / prod: Resend)
+// Email + password (Credentials บังคับใช้ JWT session)
 providers.push(
-  Nodemailer({
-    from: env.EMAIL_FROM,
-    maxAge: 60 * 30, // 30 นาที
-    // server ไม่ถูกใช้จริงเพราะ override sendVerificationRequest ด้านล่าง
-    server: { host: "localhost", port: 587, auth: { user: "", pass: "" } },
-    async sendVerificationRequest({ identifier, url }) {
-      await emailer.send({
-        to: identifier,
-        subject: "ลิงก์เข้าสู่ระบบ Quibby",
-        body: [
-          "สวัสดี! 👋",
-          "",
-          "คลิกลิงก์ด้านล่างเพื่อเข้าสู่ระบบ Quibby (ใช้ได้ภายใน 30 นาที):",
-          url,
-          "",
-          "ถ้าคุณไม่ได้เป็นคนขอเข้าสู่ระบบ ละเว้นอีเมลนี้ได้เลย",
-        ].join("\n"),
-      });
+  Credentials({
+    credentials: { email: {}, password: {} },
+    async authorize(creds) {
+      const email = String(creds?.email ?? "").toLowerCase().trim();
+      const password = String(creds?.password ?? "");
+      if (!email || !password) return null;
+
+      const [u] = await db
+        .select()
+        .from(users)
+        .where(eq(users.email, email))
+        .limit(1);
+      // ไม่มี user / เป็น Google-only / ยังไม่ verify / ถูกระงับ → ปฏิเสธ
+      if (!u || !u.passwordHash) return null;
+      if (!u.emailVerified) return null;
+      if (u.status === "suspended") return null;
+
+      const ok = await bcrypt.compare(password, u.passwordHash);
+      if (!ok) return null;
+      return { id: u.id, email: u.email, name: u.name, image: u.image };
     },
   }),
 );
@@ -64,18 +65,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     verificationTokensTable: verificationTokens,
   }),
   providers,
-  session: { strategy: "database" },
+  session: { strategy: "jwt" },
   pages: { signIn: "/signin" },
   callbacks: {
-    // database strategy → user คือ row จาก DB ใส่ฟิลด์ Quibby เข้า session
-    session({ session, user }) {
-      session.user.id = user.id;
-      // @ts-expect-error ฟิลด์เสริมจาก users table
-      session.user.role = user.role;
-      // @ts-expect-error
-      session.user.status = user.status;
-      // @ts-expect-error
-      session.user.plan = user.plan;
+    // ดึง role/status/plan สดจาก DB ทุก request → suspend/เปลี่ยน role มีผลทันที
+    async session({ session, token }) {
+      if (token.sub) {
+        const [u] = await db
+          .select()
+          .from(users)
+          .where(eq(users.id, token.sub))
+          .limit(1);
+        if (u) {
+          session.user.id = u.id;
+          session.user.email = u.email;
+          session.user.name = u.name;
+          session.user.role = u.role;
+          session.user.status = u.status;
+          session.user.plan = u.plan;
+        }
+      }
       return session;
     },
   },

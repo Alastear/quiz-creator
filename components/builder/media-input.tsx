@@ -1,20 +1,21 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
-// ใส่รูปได้ 2 ทาง: อัปโหลด (ฟรีทุก tier) หรือวาง URL (DESIGN.md ข้อ 12)
+// อัปโหลดรูปอย่างเดียว (DESIGN.md ข้อ 12) — ตัด URL ภายนอกออกเพื่อกันปัญหา save-image (CORS)
+// รูปทุกอันอยู่บนโดเมนเรา → แคปเป็นรูปผลลัพธ์ได้เสมอ
 export function MediaInput({
   value,
   onChange,
-  placeholder = "รูป (URL) หรือกดอัปโหลด",
   accept = "image/*",
+  // placeholder ไม่ใช้แล้ว (เก็บไว้กันพังที่ call site เดิม)
+  placeholder: _placeholder,
 }: {
   value?: string;
   onChange: (url: string) => void;
-  placeholder?: string;
   accept?: string;
+  placeholder?: string;
 }) {
   const ref = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -30,11 +31,8 @@ export function MediaInput({
       fd.append("file", f);
       const res = await fetch("/api/upload", { method: "POST", body: fd });
       const json = await res.json();
-      if (!res.ok) {
-        setErr(json.error ?? "อัปโหลดไม่สำเร็จ");
-      } else {
-        onChange(json.url);
-      }
+      if (!res.ok) setErr(json.error ?? "อัปโหลดไม่สำเร็จ");
+      else onChange(json.url);
     } catch {
       setErr("อัปโหลดไม่สำเร็จ");
     } finally {
@@ -45,12 +43,32 @@ export function MediaInput({
 
   return (
     <div className="space-y-1.5">
-      <div className="flex gap-2">
-        <Input
-          value={value ?? ""}
-          placeholder={placeholder}
-          onChange={(e) => onChange(e.target.value)}
-        />
+      {value ? (
+        <div className="flex items-center gap-2">
+          <img
+            src={value}
+            alt=""
+            className="h-16 w-auto rounded border object-cover"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={busy}
+            onClick={() => ref.current?.click()}
+          >
+            {busy ? "กำลังอัปโหลด…" : "เปลี่ยนรูป"}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => onChange("")}
+          >
+            ลบ
+          </Button>
+        </div>
+      ) : (
         <Button
           type="button"
           variant="outline"
@@ -58,24 +76,11 @@ export function MediaInput({
           disabled={busy}
           onClick={() => ref.current?.click()}
         >
-          {busy ? "กำลังอัปโหลด…" : "อัปโหลด"}
+          {busy ? "กำลังอัปโหลด…" : "+ อัปโหลดรูป"}
         </Button>
-        <input
-          ref={ref}
-          type="file"
-          accept={accept}
-          hidden
-          onChange={onFile}
-        />
-      </div>
-      {err && <p className="text-xs text-destructive">{err}</p>}
-      {value && (
-        <img
-          src={value}
-          alt=""
-          className="h-16 w-auto rounded border object-cover"
-        />
       )}
+      <input ref={ref} type="file" accept={accept} hidden onChange={onFile} />
+      {err && <p className="text-xs text-destructive">{err}</p>}
     </div>
   );
 }

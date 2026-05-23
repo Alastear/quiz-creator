@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useRef } from "react";
+import Link from "next/link";
 import { toPng } from "html-to-image";
 import { submitPlay, type PlayResult } from "@/lib/actions/play";
 import { QUIZ_FONTS, type QuizFontKey } from "@/lib/fonts";
@@ -159,7 +160,18 @@ export function QuizPlayer({
       )}
 
       {phase === "result" && result && (
-        <ResultScreen publicId={publicId} quizTitle={title} result={result} />
+        <ResultScreen
+          publicId={publicId}
+          quizTitle={title}
+          result={result}
+          onRestart={() => {
+            setPhase("cover");
+            setIndex(0);
+            setAnswers({});
+            setTextVal("");
+            setResult(null);
+          }}
+        />
       )}
     </main>
   );
@@ -169,10 +181,12 @@ function ResultScreen({
   publicId,
   quizTitle,
   result,
+  onRestart,
 }: {
   publicId: string;
   quizTitle: string;
   result: PlayResult;
+  onRestart: () => void;
 }) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [shareOpen, setShareOpen] = useState(false);
@@ -311,6 +325,16 @@ function ResultScreen({
             </>
           )}
         </div>
+      </div>
+
+      {/* ทำอีกครั้ง / กลับหน้าแรก */}
+      <div className="flex gap-2">
+        <Button variant="ghost" onClick={onRestart}>
+          ↻ ทำอีกครั้ง
+        </Button>
+        <Button variant="ghost" render={<Link href="/" />}>
+          หาแบบทดสอบอื่น
+        </Button>
       </div>
 
       {/* Creator Tip Jar (DESIGN.md ข้อ 10.5) — แพลตฟอร์มไม่ยุ่งกับเงิน */}

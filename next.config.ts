@@ -41,6 +41,11 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.join(__dirname),
   },
+  // bundle ฟอนต์ไทยเข้า serverless function ของ OG image (อ่านด้วย fs ตอน runtime)
+  // ไม่งั้นบน Vercel ไฟล์ .ttf จะไม่ถูก trace → OG image พัง
+  outputFileTracingIncludes: {
+    "/quiz/[publicId]/opengraph-image": ["./assets/fonts/**"],
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

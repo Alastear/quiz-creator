@@ -2,9 +2,10 @@ import Link from "next/link";
 import { desc, eq } from "drizzle-orm";
 import { signOut } from "@/auth";
 import { db } from "@/lib/db";
-import { quizzes } from "@/lib/db/schema";
+import { quizzes, users } from "@/lib/db/schema";
 import { requireUser } from "@/lib/auth-helpers";
 import { createQuiz, republishQuizAction, restoreQuiz } from "@/lib/actions/quiz";
+import { extendQuizWithCredit } from "@/lib/actions/billing";
 import { FREE_ACTIVE_QUIZ_LIMIT } from "@/lib/entitlements";
 import { kanit } from "@/lib/fonts";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,12 @@ export default async function DashboardPage() {
 
   const activeCount = myQuizzes.filter((q) => q.status === "published").length;
 
+  const [me] = await db
+    .select({ credits: users.quizCredits })
+    .from(users)
+    .where(eq(users.id, user.id))
+    .limit(1);
+
   async function logout() {
     "use server";
     await signOut({ redirectTo: "/" });
@@ -39,6 +46,9 @@ export default async function DashboardPage() {
       <div className="flex items-center justify-between">
         <h1 className={`${kanit.className} text-2xl font-semibold`}>แดชบอร์ด</h1>
         <div className="flex gap-2">
+          <Button variant="outline" size="sm" render={<Link href="/dashboard/billing" />}>
+            เครดิต {me?.credits ?? 0}
+          </Button>
           {user.role === "admin" && (
             <Button variant="secondary" size="sm" render={<Link href="/admin" />}>
               Admin
@@ -83,6 +93,13 @@ export default async function DashboardPage() {
                 {" · "}เล่น {q.playCount} ครั้ง
               </p>
             </div>
+            {q.status === "published" && (
+              <form action={extendQuizWithCredit.bind(null, q.id)}>
+                <Button size="sm" variant="ghost" type="submit">
+                  ต่ออายุ +30 (1 เครดิต)
+                </Button>
+              </form>
+            )}
             {q.status === "published" && (
               <Button
                 size="sm"

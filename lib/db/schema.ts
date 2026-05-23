@@ -276,12 +276,44 @@ export const auditLogs = pgTable("audit_logs", {
     .defaultNow(),
 });
 
+// ---- ธุรกรรมการจ่ายเงิน/โดเนท (DESIGN.md ข้อ 10) ----
+export const txnKind = pgEnum("txn_kind", [
+  "credit_pack",
+  "donation",
+  "pro",
+]);
+export const txnStatus = pgEnum("txn_status", [
+  "pending",
+  "paid",
+  "failed",
+  "refunded",
+]);
+
+export const transactions = pgTable("transactions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  kind: txnKind("kind").notNull(),
+  amount: integer("amount").notNull(), // บาท (จำนวนเต็ม)
+  currency: text("currency").notNull().default("thb"),
+  creditsGranted: integer("credits_granted").notNull().default(0),
+  provider: text("provider").notNull().default("mock"),
+  providerRef: text("provider_ref"),
+  status: txnStatus("status").notNull().default("pending"),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Consent = typeof consents.$inferSelect;
 export type Media = typeof media.$inferSelect;
 export type QuizArchive = typeof quizArchives.$inferSelect;
 export type AuditLog = typeof auditLogs.$inferSelect;
+export type Transaction = typeof transactions.$inferSelect;
 export type Quiz = typeof quizzes.$inferSelect;
 export type Question = typeof questions.$inferSelect;
 export type Choice = typeof choices.$inferSelect;

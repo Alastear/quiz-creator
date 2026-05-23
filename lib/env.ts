@@ -11,6 +11,10 @@ const schema = z.object({
 
   RATELIMIT_DRIVER: z.enum(["memory", "upstash"]).default("memory"),
   EMAIL_DRIVER: z.enum(["console", "resend"]).default("console"),
+  // Payment: mock (จ่ายแล้วได้ credit ทันที, dev) | stripe (prod)
+  PAYMENT_DRIVER: z.enum(["mock", "stripe"]).default("mock"),
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
 
   // prod-only — ปล่อยว่างได้ตอน local
   BLOB_READ_WRITE_TOKEN: z.string().optional(),

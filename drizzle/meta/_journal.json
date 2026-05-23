@@ -50,6 +50,13 @@
       "when": 1779491964467,
       "tag": "0006_productive_sumo",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1779492776824,
+      "tag": "0007_sturdy_callisto",
+      "breakpoints": true
     }
   ]
 }

@@ -6,6 +6,8 @@ import { kanit } from "@/lib/fonts";
 import { QUIZ_CATEGORIES, CATEGORY_LABEL } from "@/lib/categories";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Announcement } from "@/components/site/announcement";
+import { AdZone } from "@/components/ads/ad-zone";
 
 export const metadata = {
   title: "Quibby — สร้างและเล่น quiz สนุก ๆ",
@@ -43,6 +45,20 @@ export default async function Home({
 
   return (
     <main className="flex-1">
+      <Announcement />
+
+      {/* rails โฆษณา — โผล่เฉพาะจอกว้าง ≥xl และเมื่อมีโฆษณา (ไม่มี = ไม่ดันเนื้อหา) */}
+      <AdZone
+        placement="rail_left"
+        page="home"
+        className="fixed left-3 top-1/2 hidden h-96 w-40 -translate-y-1/2 xl:block"
+      />
+      <AdZone
+        placement="rail_right"
+        page="home"
+        className="fixed right-3 top-1/2 hidden h-96 w-40 -translate-y-1/2 xl:block"
+      />
+
       {/* nav */}
       <header className="flex items-center gap-3 px-6 py-4">
         <Link href="/" className={`${kanit.className} text-xl font-bold`}>
@@ -131,6 +147,9 @@ export default async function Home({
             ))}
           </ul>
         )}
+
+        {/* footer โฆษณา (ถ้ามี) */}
+        <AdZone placement="footer" page="home" className="mx-auto mt-10 block h-24 max-w-3xl" />
       </section>
     </main>
   );

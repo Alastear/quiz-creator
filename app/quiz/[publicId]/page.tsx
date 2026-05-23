@@ -3,6 +3,7 @@ import { asc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { quizzes, questions, choices } from "@/lib/db/schema";
 import { QuizPlayer } from "@/components/play/quiz-player";
+import { reportQuiz } from "@/lib/actions/report";
 
 async function loadQuiz(publicId: string) {
   const [quiz] = await db
@@ -89,13 +90,38 @@ export default async function PlayPage({
   }));
 
   return (
-    <QuizPlayer
-      publicId={quiz.publicId}
-      title={quiz.title}
-      description={quiz.description}
-      coverImageUrl={quiz.coverImageUrl}
-      fontKey={quiz.theme?.fontFamily ?? "sarabun"}
-      questions={playQuestions}
-    />
+    <div className="flex flex-1 flex-col">
+      <QuizPlayer
+        publicId={quiz.publicId}
+        title={quiz.title}
+        description={quiz.description}
+        coverImageUrl={quiz.coverImageUrl}
+        fontKey={quiz.theme?.fontFamily ?? "sarabun"}
+        questions={playQuestions}
+      />
+
+      {/* รายงาน quiz (DESIGN ข้อ 11.2 F) */}
+      <details className="mx-auto w-full max-w-xl px-6 pb-8 text-xs text-muted-foreground">
+        <summary className="cursor-pointer">รายงาน quiz นี้</summary>
+        <form
+          action={reportQuiz.bind(null, quiz.publicId)}
+          className="mt-2 flex gap-2"
+        >
+          <input
+            name="reason"
+            required
+            maxLength={1000}
+            placeholder="เหตุผล เช่น เนื้อหาไม่เหมาะสม"
+            className="h-9 flex-1 rounded-md border bg-background px-2 text-sm"
+          />
+          <button
+            type="submit"
+            className="h-9 rounded-md border px-3 text-sm hover:bg-muted"
+          >
+            ส่งรายงาน
+          </button>
+        </form>
+      </details>
+    </div>
   );
 }

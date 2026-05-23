@@ -6,6 +6,7 @@ import {
   timestamp,
   integer,
   jsonb,
+  boolean,
   primaryKey,
 } from "drizzle-orm/pg-core";
 import type { AdapterAccountType } from "next-auth/adapters";
@@ -320,6 +321,73 @@ export const transactions = pgTable("transactions", {
     .defaultNow(),
 });
 
+// ---- Moderation: รายงาน quiz (DESIGN.md ข้อ 11.2 F) ----
+export const reportStatus = pgEnum("report_status", [
+  "open",
+  "reviewing",
+  "resolved",
+  "dismissed",
+]);
+export const reports = pgTable("reports", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  quizId: uuid("quiz_id")
+    .notNull()
+    .references(() => quizzes.id, { onDelete: "cascade" }),
+  reporterUserId: uuid("reporter_user_id").references(() => users.id, {
+    onDelete: "set null",
+  }),
+  reason: text("reason").notNull(),
+  status: reportStatus("status").notNull().default("open"),
+  resolvedBy: uuid("resolved_by").references(() => users.id, {
+    onDelete: "set null",
+  }),
+  resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+  ip: text("ip"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+// ---- ตั้งค่าระบบจากหลังบ้าน (DESIGN.md ข้อ 11.2 G) ----
+export const appConfig = pgTable("app_config", {
+  key: text("key").primaryKey(), // 'flags' | 'announcement' | ...
+  value: jsonb("value").notNull(),
+  updatedBy: uuid("updated_by").references(() => users.id, {
+    onDelete: "set null",
+  }),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+// ---- พื้นที่โฆษณา (DESIGN.md ข้อ 6.3) ----
+export const adPlacement = pgEnum("ad_placement", [
+  "footer",
+  "rail_left",
+  "rail_right",
+  "inline",
+]);
+export const adKind = pgEnum("ad_kind", ["image", "embed"]);
+export const adSlots = pgTable("ad_slots", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  placement: adPlacement("placement").notNull(),
+  enabled: boolean("enabled").notNull().default(false),
+  kind: adKind("kind").notNull().default("image"),
+  imageUrl: text("image_url"),
+  targetUrl: text("target_url"),
+  embedHtml: text("embed_html"),
+  pages: jsonb("pages").$type<string[]>().notNull().default([]), // ['home','play']
+  weight: integer("weight").notNull().default(1),
+  impressions: integer("impressions").notNull().default(0),
+  clicks: integer("clicks").notNull().default(0),
+  updatedBy: uuid("updated_by").references(() => users.id, {
+    onDelete: "set null",
+  }),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Consent = typeof consents.$inferSelect;
@@ -327,6 +395,8 @@ export type Media = typeof media.$inferSelect;
 export type QuizArchive = typeof quizArchives.$inferSelect;
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type Transaction = typeof transactions.$inferSelect;
+export type Report = typeof reports.$inferSelect;
+export type AdSlot = typeof adSlots.$inferSelect;
 export type Quiz = typeof quizzes.$inferSelect;
 export type Question = typeof questions.$inferSelect;
 export type Choice = typeof choices.$inferSelect;

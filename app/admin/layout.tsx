@@ -8,8 +8,11 @@ const NAV = [
   { href: "/admin", label: "ภาพรวม" },
   { href: "/admin/users", label: "ผู้ใช้" },
   { href: "/admin/quizzes", label: "Quiz" },
+  { href: "/admin/moderation", label: "รายงาน" },
   { href: "/admin/transactions", label: "การเงิน" },
   { href: "/admin/analytics", label: "สถิติ" },
+  { href: "/admin/ads", label: "โฆษณา" },
+  { href: "/admin/settings", label: "ตั้งค่าระบบ" },
 ];
 
 export default async function AdminLayout({

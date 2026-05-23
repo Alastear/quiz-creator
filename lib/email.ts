@@ -38,10 +38,18 @@ const consoleEmailer: Emailer = {
 };
 
 const resendEmailer: Emailer = {
-  async send() {
-    throw new Error(
-      "Resend emailer ยังไม่ได้ติดตั้ง — ติดตั้งตอน Phase 0.5 (pnpm add resend, ตั้ง RESEND_API_KEY)",
-    );
+  async send({ to, subject, body, html }) {
+    if (!env.RESEND_API_KEY) throw new Error("RESEND_API_KEY ไม่ได้ตั้ง");
+    // import แบบ dynamic เพื่อไม่ให้โหลด SDK ตอน dev ที่ใช้ console
+    const { Resend } = await import("resend");
+    const resend = new Resend(env.RESEND_API_KEY);
+    const { error } = await resend.emails.send({
+      from: env.EMAIL_FROM,
+      to,
+      subject,
+      ...(html ? { html: body } : { text: body }),
+    });
+    if (error) throw new Error(`ส่งอีเมลไม่สำเร็จ: ${error.message}`);
   },
 };
 

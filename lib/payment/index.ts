@@ -24,15 +24,9 @@ const mockProvider: PaymentProvider = {
   },
 };
 
-// Stripe (Phase prod): pnpm add stripe, สร้าง Checkout Session แล้ว fulfill ผ่าน webhook
-const stripeProvider: PaymentProvider = {
-  async checkoutCreditPack() {
-    throw new Error("Stripe ยังไม่ได้ตั้งค่า — ใส่ STRIPE_SECRET_KEY แล้วสลับ PAYMENT_DRIVER=stripe");
-  },
-  async checkoutDonation() {
-    throw new Error("Stripe ยังไม่ได้ตั้งค่า");
-  },
-};
+// Stripe provider อยู่ในไฟล์แยก (lib/payment/stripe.ts) — import แบบ lazy ผ่าน getter
+// เพื่อไม่ให้ stripe SDK ถูกโหลด/สร้าง client ตอน dev ที่ใช้ mock
+import { stripeProvider } from "./stripe";
 
 export const payment: PaymentProvider =
   env.PAYMENT_DRIVER === "stripe" ? stripeProvider : mockProvider;

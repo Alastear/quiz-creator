@@ -57,6 +57,13 @@
       "when": 1779492776824,
       "tag": "0007_sturdy_callisto",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1779512868481,
+      "tag": "0008_noisy_nemesis",
+      "breakpoints": true
     }
   ]
 }

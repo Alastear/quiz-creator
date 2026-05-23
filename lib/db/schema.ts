@@ -29,6 +29,19 @@ export const users = pgTable("users", {
   status: userStatus("status").notNull().default("active"),
   plan: userPlan("plan").notNull().default("free"),
   quizCredits: integer("quiz_credits").notNull().default(0),
+  // Creator Tip Jar (DESIGN.md ข้อ 10.5) — แพลตฟอร์มไม่ยุ่งกับเงิน แค่แปะให้
+  creatorPayout: jsonb("creator_payout")
+    .$type<{
+      enabled?: boolean;
+      qrUrl?: string;
+      bankName?: string;
+      bankAccount?: string;
+      accountName?: string;
+      externalUrl?: string;
+      message?: string;
+    }>()
+    .notNull()
+    .default({}),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

@@ -1,9 +1,11 @@
 "use server";
 
+import { headers } from "next/headers";
 import { asc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { quizzes, questions, choices, results, plays } from "@/lib/db/schema";
+import { quizzes, questions, choices, results, plays, users } from "@/lib/db/schema";
 import { computeResult, type ScoringChoice, type ScoringResult } from "@/lib/scoring";
+import { ratelimit } from "@/lib/ratelimit";
 
 export type PlayResult = {
   resultKey: string;
@@ -13,6 +15,14 @@ export type PlayResult = {
   shareText: string | null;
   showProbabilityBar: boolean;
   distribution: { title: string; pct: number }[];
+  creatorTip: {
+    qrUrl?: string;
+    bankName?: string;
+    bankAccount?: string;
+    accountName?: string;
+    externalUrl?: string;
+    message?: string;
+  } | null;
 };
 
 /**
@@ -23,6 +33,20 @@ export async function submitPlay(
   publicId: string,
   answers: { questionId: string; choiceId?: string; text?: string }[],
 ): Promise<PlayResult> {
+  // rate-limit ต่อ IP กัน spam submit (headers() ใช้ได้เฉพาะใน request scope)
+  let ip = "unknown";
+  try {
+    const h = await headers();
+    ip =
+      h.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+      h.get("x-real-ip") ??
+      "unknown";
+  } catch {
+    // เรียกนอก request (เช่น script) — ข้าม
+  }
+  const rl = await ratelimit.limit(`play:${ip}`, { limit: 40, windowMs: 60_000 });
+  if (!rl.success) throw new Error("เล่นถี่เกินไป ลองใหม่อีกครั้ง");
+
   const [quiz] = await db
     .select()
     .from(quizzes)
@@ -85,6 +109,25 @@ export async function submitPlay(
   const winner = rs.find((r) => r.resultKey === outcome.resultKey) ?? rs[0];
   const titleByKey = new Map(rs.map((r) => [r.resultKey, r.title]));
 
+  // ช่องทางโดเนทของผู้สร้าง (ถ้าเปิดไว้) — DESIGN.md ข้อ 10.5
+  const [owner] = await db
+    .select({ payout: users.creatorPayout })
+    .from(users)
+    .where(eq(users.id, quiz.ownerId))
+    .limit(1);
+  const p = owner?.payout;
+  const creatorTip =
+    p?.enabled && (p.qrUrl || p.bankAccount || p.externalUrl)
+      ? {
+          qrUrl: p.qrUrl,
+          bankName: p.bankName,
+          bankAccount: p.bankAccount,
+          accountName: p.accountName,
+          externalUrl: p.externalUrl,
+          message: p.message,
+        }
+      : null;
+
   await db.transaction(async (tx) => {
     await tx.insert(plays).values({
       quizId: quiz.id,
@@ -108,5 +151,6 @@ export async function submitPlay(
       title: titleByKey.get(d.resultKey) ?? d.resultKey,
       pct: d.pct,
     })),
+    creatorTip,
   };
 }

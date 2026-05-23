@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "creator_payout" jsonb DEFAULT '{}'::jsonb NOT NULL;

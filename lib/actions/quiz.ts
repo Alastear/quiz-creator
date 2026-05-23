@@ -15,6 +15,7 @@ import {
   quizExpiry,
 } from "@/lib/entitlements";
 import { restoreArchivedQuiz } from "@/lib/lifecycle";
+import { ratelimit } from "@/lib/ratelimit";
 
 /** โหลด quiz ที่ user เป็นเจ้าของ (กัน IDOR) */
 async function getOwnedQuiz(quizId: string, ownerId: string) {
@@ -30,6 +31,11 @@ async function getOwnedQuiz(quizId: string, ownerId: string) {
 /** สร้าง quiz เปล่า (มี seed ผลลัพธ์ 2 แบบ + คำถาม 1 ข้อ) แล้วเด้งไปหน้า builder */
 export async function createQuiz() {
   const user = await getActor();
+  const rl = await ratelimit.limit(`create:${user.id}`, {
+    limit: 20,
+    windowMs: 60_000,
+  });
+  if (!rl.success) throw new Error("สร้างถี่เกินไป ลองใหม่อีกครั้ง");
   const quizId = crypto.randomUUID();
   const publicId = nanoid(12);
 

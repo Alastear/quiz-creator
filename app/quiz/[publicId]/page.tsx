@@ -27,7 +27,7 @@ export async function generateMetadata({
     openGraph: {
       title: quiz.title,
       description: quiz.description ?? undefined,
-      images: quiz.coverImageUrl ? [quiz.coverImageUrl] : undefined,
+      // รูป OG สร้างจาก opengraph-image.tsx (1200x630 + ฟอนต์ไทย)
     },
   };
 }

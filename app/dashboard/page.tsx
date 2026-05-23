@@ -46,6 +46,9 @@ export default async function DashboardPage() {
       <div className="flex items-center justify-between">
         <h1 className={`${kanit.className} text-2xl font-semibold`}>แดชบอร์ด</h1>
         <div className="flex gap-2">
+          <Button variant="ghost" size="sm" render={<Link href="/dashboard/settings" />}>
+            ตั้งค่า
+          </Button>
           <Button variant="outline" size="sm" render={<Link href="/dashboard/billing" />}>
             เครดิต {me?.credits ?? 0}
           </Button>

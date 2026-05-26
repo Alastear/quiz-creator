@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { nanoid } from "nanoid";
@@ -59,6 +59,14 @@ export function QuizBuilder({ quizId, publicId, status, initial }: Props) {
     }
     return n;
   }
+
+  // ซ่อนข้อความสถานะอัตโนมัติหลังบันทึกเสร็จ
+  useEffect(() => {
+    if (msg && !pending) {
+      const t = setTimeout(() => setMsg(null), 2500);
+      return () => clearTimeout(t);
+    }
+  }, [msg, pending]);
 
   async function doSave() {
     setMsg(null);
@@ -123,7 +131,6 @@ export function QuizBuilder({ quizId, publicId, status, initial }: Props) {
         )}
       </div>
 
-      {msg && <p className="mb-3 text-sm text-muted-foreground">{msg}</p>}
       {errors.length > 0 && (
         <ul className="mb-4 list-disc rounded-md border border-destructive/40 bg-destructive/5 p-3 pl-8 text-sm text-destructive">
           {errors.map((e) => (
@@ -496,6 +503,20 @@ export function QuizBuilder({ quizId, publicId, status, initial }: Props) {
           </div>
         </CardContent>
       </Card>
+
+      {/* toast สถานะบันทึก (มุมขวาล่าง) */}
+      {(pending || msg) && (
+        <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2 rounded-lg border bg-background px-4 py-2.5 text-sm shadow-lg">
+          {pending ? (
+            <>
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-muted border-t-primary" />
+              กำลังบันทึก…
+            </>
+          ) : (
+            <span>{msg}</span>
+          )}
+        </div>
+      )}
 
       {/* dialog เตือนค่าคะแนนผิด */}
       {warn && (

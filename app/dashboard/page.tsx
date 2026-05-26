@@ -7,6 +7,7 @@ import { requireUser } from "@/lib/auth-helpers";
 import { createQuiz, republishQuizAction, restoreQuiz } from "@/lib/actions/quiz";
 import { extendQuizWithCredit } from "@/lib/actions/billing";
 import { FREE_ACTIVE_QUIZ_LIMIT } from "@/lib/entitlements";
+import { CreateQuizButton } from "@/components/dashboard/create-quiz-button";
 import { kanit } from "@/lib/fonts";
 import { Button } from "@/components/ui/button";
 
@@ -77,7 +78,7 @@ export default async function DashboardPage() {
 
       <div className="mt-6">
         <form action={createQuiz}>
-          <Button type="submit">+ สร้าง quiz ใหม่</Button>
+          <CreateQuizButton />
         </form>
       </div>
 

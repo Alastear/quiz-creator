@@ -72,6 +72,16 @@ export function QuizPlayer({
       className="mx-auto flex w-full max-w-xl flex-1 flex-col px-6 py-10"
       style={{ fontFamily: font.varName }}
     >
+      {/* ปุ่มกลับหน้าแรก (อยู่ทุกหน้าของการเล่น) */}
+      <div className="mb-2">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          ← หน้าแรก
+        </Link>
+      </div>
+
       {phase === "cover" && (
         <div className="flex flex-1 flex-col items-center justify-center gap-5 text-center">
           {coverImageUrl && (

@@ -45,6 +45,7 @@ const nextConfig: NextConfig = {
   // ไม่งั้นบน Vercel ไฟล์ .ttf จะไม่ถูก trace → OG image พัง
   outputFileTracingIncludes: {
     "/quiz/[publicId]/opengraph-image": ["./assets/fonts/**"],
+    "/api/result-card": ["./assets/fonts/**"],
   },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];

@@ -38,6 +38,7 @@ export function QuizBuilder({ quizId, publicId, status, initial }: Props) {
   const [msg, setMsg] = useState<string | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [pending, startTransition] = useTransition();
+  const [warn, setWarn] = useState<string | null>(null);
   const isRange = draft.resultLogic === "range";
 
   function update(fn: (d: QuizDraft) => void) {
@@ -46,6 +47,17 @@ export function QuizBuilder({ quizId, publicId, status, initial }: Props) {
       fn(d);
       return d;
     });
+  }
+
+  // คะแนนต้องเป็นจำนวนเต็ม ≥ 0 (ต่ำกว่า 0 บันทึกไม่ได้) — clamp + เตือน
+  function clampScore(raw: string): number {
+    const n = Math.floor(Number(raw));
+    if (!Number.isFinite(n)) return 0;
+    if (n < 0) {
+      setWarn("คะแนนต้องไม่ต่ำกว่า 0 — ระบบปรับค่าให้เป็น 0 ให้แล้ว");
+      return 0;
+    }
+    return n;
   }
 
   async function doSave() {
@@ -250,26 +262,24 @@ export function QuizBuilder({ quizId, publicId, status, initial }: Props) {
                   <span className="text-muted-foreground">ช่วงคะแนน</span>
                   <Input
                     type="number"
+                    min={0}
                     className="w-20"
                     value={r.scoreMin ?? 0}
-                    onChange={(e) =>
-                      update(
-                        (d) =>
-                          void (d.results[i].scoreMin = Number(e.target.value)),
-                      )
-                    }
+                    onChange={(e) => {
+                      const v = clampScore(e.target.value);
+                      update((d) => void (d.results[i].scoreMin = v));
+                    }}
                   />
                   <span>–</span>
                   <Input
                     type="number"
+                    min={0}
                     className="w-20"
                     value={r.scoreMax ?? 0}
-                    onChange={(e) =>
-                      update(
-                        (d) =>
-                          void (d.results[i].scoreMax = Number(e.target.value)),
-                      )
-                    }
+                    onChange={(e) => {
+                      const v = clampScore(e.target.value);
+                      update((d) => void (d.results[i].scoreMax = v));
+                    }}
                   />
                 </div>
               )}
@@ -393,8 +403,8 @@ export function QuizBuilder({ quizId, publicId, status, initial }: Props) {
                     {isRange ? (
                       <div className="flex items-center gap-2 text-sm">
                         <span className="text-muted-foreground">แต้ม</span>
-                        <Input type="number" className="w-24" value={c.points}
-                          onChange={(e) => update((d) => void (d.questions[qi].choices[ci].points = Number(e.target.value)))} />
+                        <Input type="number" min={0} className="w-24" value={c.points}
+                          onChange={(e) => { const v = clampScore(e.target.value); update((d) => void (d.questions[qi].choices[ci].points = v)); }} />
                       </div>
                     ) : (
                       <div className="flex flex-wrap gap-2">
@@ -403,16 +413,18 @@ export function QuizBuilder({ quizId, publicId, status, initial }: Props) {
                             <span className="text-muted-foreground">{r.title}</span>
                             <Input
                               type="number"
+                              min={0}
                               className="h-7 w-16"
                               value={c.scoreMap[r.resultKey] ?? 0}
-                              onChange={(e) =>
+                              onChange={(e) => {
+                                const v = clampScore(e.target.value);
                                 update(
                                   (d) =>
                                     void (d.questions[qi].choices[ci].scoreMap[
                                       r.resultKey
-                                    ] = Number(e.target.value)),
-                                )
-                              }
+                                    ] = v),
+                                );
+                              }}
                             />
                           </label>
                         ))}
@@ -484,6 +496,25 @@ export function QuizBuilder({ quizId, publicId, status, initial }: Props) {
           </div>
         </CardContent>
       </Card>
+
+      {/* dialog เตือนค่าคะแนนผิด */}
+      {warn && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={() => setWarn(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-xl border bg-background p-5 text-center shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="font-semibold">⚠️ ค่าไม่ถูกต้อง</p>
+            <p className="mt-2 text-sm text-muted-foreground">{warn}</p>
+            <Button className="mt-4 w-full" onClick={() => setWarn(null)}>
+              เข้าใจแล้ว
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

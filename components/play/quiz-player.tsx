@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useTransition, useRef } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
-import { toPng } from "html-to-image";
 import { submitPlay, type PlayResult } from "@/lib/actions/play";
 import { QUIZ_FONTS, type QuizFontKey } from "@/lib/fonts";
 import { Button } from "@/components/ui/button";
@@ -198,10 +197,11 @@ function ResultScreen({
   result: PlayResult;
   onRestart: () => void;
 }) {
-  const cardRef = useRef<HTMLDivElement>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  const [savingImg, setSavingImg] = useState(false);
+
+  // โหลดการ์ดผลลัพธ์เป็น PNG ที่ render ฝั่ง server (ไม่มีปัญหา CORS)
+  const cardUrl = `/api/result-card?quiz=${encodeURIComponent(publicId)}&r=${encodeURIComponent(result.resultKey)}`;
 
   const shareUrl =
     typeof window !== "undefined"
@@ -244,39 +244,14 @@ function ResultScreen({
     }
   }
 
-  async function saveImage() {
-    if (!cardRef.current) return;
-    setSavingImg(true);
-    try {
-      const dataUrl = await toPng(cardRef.current, {
-        cacheBust: true,
-        pixelRatio: 2,
-        backgroundColor: "#ffffff",
-      });
-      const a = document.createElement("a");
-      a.href = dataUrl;
-      a.download = `quibby-${result.resultKey}.png`;
-      a.click();
-    } catch {
-      flash("บันทึกรูปไม่สำเร็จ (รูปภายนอกบางรูปอาจติดข้อจำกัด)");
-    } finally {
-      setSavingImg(false);
-    }
-  }
-
   return (
     <div className="flex flex-1 flex-col items-center gap-4">
-      {/* ส่วนที่จะถูกแคปเป็นรูป */}
-      <div
-        ref={cardRef}
-        className="flex w-full flex-col items-center gap-3 rounded-xl bg-background p-6 text-center"
-      >
+      <div className="flex w-full flex-col items-center gap-3 rounded-xl bg-background p-6 text-center">
         <p className="text-sm text-muted-foreground">ผลลัพธ์ของคุณคือ</p>
         {result.mediaUrl && (
           <img
             src={result.mediaUrl}
             alt=""
-            crossOrigin="anonymous"
             className="max-h-64 w-auto rounded-lg object-cover"
           />
         )}
@@ -306,9 +281,7 @@ function ResultScreen({
       {toast && <p className="text-sm text-muted-foreground">{toast}</p>}
 
       <div className="mt-2 flex items-center gap-2">
-        <Button onClick={saveImage} disabled={savingImg}>
-          {savingImg ? "กำลังบันทึก…" : "บันทึกรูปผลลัพธ์"}
-        </Button>
+        <Button render={<a href={cardUrl} download />}>บันทึกรูปผลลัพธ์</Button>
 
         {/* ปุ่มแชร์เดียว → เลือกแพลตฟอร์ม */}
         <div className="relative">

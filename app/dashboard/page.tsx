@@ -43,6 +43,12 @@ export default async function DashboardPage() {
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-6 py-12">
+      <Link
+        href="/"
+        className="mb-4 inline-flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
+        ← หน้าแรก
+      </Link>
       <div className="flex items-center justify-between">
         <h1 className={`${kanit.className} text-2xl font-semibold`}>แดชบอร์ด</h1>
         <div className="flex gap-2">

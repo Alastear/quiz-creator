@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { and, desc, eq, gt, ilike, isNull, or, type SQL } from "drizzle-orm";
+import { auth, signOut } from "@/auth";
 import { db } from "@/lib/db";
 import { quizzes } from "@/lib/db/schema";
 import { kanit } from "@/lib/fonts";
@@ -21,6 +22,12 @@ export default async function Home({
   searchParams: Promise<{ q?: string; cat?: string }>;
 }) {
   const { q = "", cat = "" } = await searchParams;
+  const session = await auth();
+
+  async function logout() {
+    "use server";
+    await signOut({ redirectTo: "/" });
+  }
 
   const filters: SQL[] = [
     eq(quizzes.status, "published"),
@@ -66,12 +73,27 @@ export default async function Home({
           <Logo />
         </Link>
         <div className="ml-auto flex gap-2">
-          <Button variant="ghost" size="sm" render={<Link href="/signin" />}>
-            เข้าสู่ระบบ
-          </Button>
-          <Button size="sm" render={<Link href="/dashboard" />}>
-            + สร้าง quiz
-          </Button>
+          {session?.user ? (
+            <>
+              <Button variant="outline" size="sm" render={<Link href="/dashboard" />}>
+                แดชบอร์ด
+              </Button>
+              <form action={logout}>
+                <Button variant="ghost" size="sm" type="submit">
+                  ออกจากระบบ
+                </Button>
+              </form>
+            </>
+          ) : (
+            <>
+              <Button variant="ghost" size="sm" render={<Link href="/signin" />}>
+                เข้าสู่ระบบ
+              </Button>
+              <Button size="sm" render={<Link href="/dashboard" />}>
+                + สร้าง quiz
+              </Button>
+            </>
+          )}
         </div>
       </header>
 

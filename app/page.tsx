@@ -6,7 +6,6 @@ import { quizzes } from "@/lib/db/schema";
 import { kanit } from "@/lib/fonts";
 import { QUIZ_CATEGORIES, CATEGORY_LABEL } from "@/lib/categories";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Announcement } from "@/components/site/announcement";
 import { AdZone } from "@/components/ads/ad-zone";
 import { Logo } from "@/components/brand/logo";
@@ -98,29 +97,45 @@ export default async function Home({
       </header>
 
       {/* hero + search */}
-      <section className="px-6 pb-6 pt-8 text-center">
-        <h1 className={`${kanit.className} text-4xl font-bold sm:text-5xl`}>
-          เล่น quiz สนุก ๆ
+      <section className="relative overflow-hidden px-6 pb-10 pt-12 text-center">
+        {/* แสงไล่เฉดประดับ (โทนโลโก้ ม่วง-ชมพู) */}
+        <div className="pointer-events-none absolute inset-0 -z-10">
+          <div className="absolute left-1/2 top-0 h-72 w-[42rem] max-w-full -translate-x-1/2 rounded-full bg-gradient-to-br from-violet-300/40 via-fuchsia-300/30 to-pink-300/40 blur-3xl" />
+        </div>
+
+        <h1 className={`${kanit.className} text-4xl font-bold tracking-tight sm:text-6xl`}>
+          เล่น{" "}
+          <span className="bg-gradient-to-r from-violet-600 to-pink-600 bg-clip-text text-transparent">
+            quiz
+          </span>{" "}
+          สนุก ๆ
         </h1>
-        <p className="mt-3 text-muted-foreground">
-          ค้นหาแบบทดสอบที่อยากเล่น หรือสร้างของคุณเองแล้วแชร์
+        <p className="mx-auto mt-3 max-w-md text-base text-muted-foreground">
+          ค้นหาแบบทดสอบที่อยากเล่น ทายนิสัย ทายผล แล้วแชร์ให้เพื่อน
         </p>
-        <form action="/" className="mx-auto mt-6 flex max-w-md gap-2">
-          <Input
+
+        <form
+          action="/"
+          className="mx-auto mt-7 flex max-w-md items-center gap-2 rounded-full border bg-background p-1.5 shadow-sm focus-within:ring-2 focus-within:ring-violet-400/40"
+        >
+          <input
             name="q"
             defaultValue={q}
             placeholder="ค้นหาแบบทดสอบ…"
-            className="h-10"
+            className="h-10 flex-1 bg-transparent px-4 text-sm outline-none"
           />
           {cat && <input type="hidden" name="cat" value={cat} />}
-          <Button type="submit" className="h-10">
+          <Button
+            type="submit"
+            className="h-10 rounded-full bg-gradient-to-r from-violet-600 to-pink-600 px-5 text-white"
+          >
             ค้นหา
           </Button>
         </form>
 
         {/* category chips */}
-        <div className="mx-auto mt-5 flex max-w-2xl flex-wrap justify-center gap-2">
-          <CategoryChip label="ทั้งหมด" href={buildHref(q, "")} active={!cat} />
+        <div className="mx-auto mt-6 flex max-w-2xl flex-wrap justify-center gap-2">
+          <CategoryChip label="✨ ทั้งหมด" href={buildHref(q, "")} active={!cat} />
           {QUIZ_CATEGORIES.map((c) => (
             <CategoryChip
               key={c.key}
@@ -139,30 +154,33 @@ export default async function Home({
             ยังไม่มีแบบทดสอบที่ตรงกับการค้นหา
           </p>
         ) : (
-          <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {list.map((quiz) => (
               <li key={quiz.publicId}>
                 <Link
                   href={`/quiz/${quiz.publicId}`}
-                  className="block overflow-hidden rounded-xl border transition-shadow hover:shadow-md"
+                  className="group block overflow-hidden rounded-2xl border bg-card shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg"
                 >
-                  <div className="aspect-video w-full bg-muted">
+                  <div className="aspect-video w-full overflow-hidden">
                     {quiz.coverImageUrl ? (
                       <img
                         src={quiz.coverImageUrl}
                         alt=""
-                        className="h-full w-full object-cover"
+                        className="h-full w-full object-cover transition-transform group-hover:scale-105"
                       />
                     ) : (
-                      <div className="flex h-full items-center justify-center text-3xl">
+                      <div className="flex h-full items-center justify-center bg-gradient-to-br from-violet-500 to-pink-500 text-5xl">
                         {QUIZ_CATEGORIES.find((c) => c.key === quiz.category)?.emoji ?? "✨"}
                       </div>
                     )}
                   </div>
-                  <div className="p-3">
-                    <p className="line-clamp-1 font-medium">{quiz.title}</p>
-                    <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
-                      {CATEGORY_LABEL[quiz.category]} · เล่น {quiz.playCount} ครั้ง
+                  <div className="p-4">
+                    <p className="line-clamp-1 font-semibold">{quiz.title}</p>
+                    <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                      <span className="rounded-full bg-muted px-2 py-0.5">
+                        {CATEGORY_LABEL[quiz.category]}
+                      </span>
+                      <span>· เล่น {quiz.playCount} ครั้ง</span>
                     </p>
                   </div>
                 </Link>
@@ -199,7 +217,9 @@ function CategoryChip({
     <Link
       href={href}
       className={`rounded-full border px-3 py-1 text-sm transition-colors ${
-        active ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted"
+        active
+          ? "border-transparent bg-gradient-to-r from-violet-600 to-pink-600 text-white"
+          : "hover:bg-muted"
       }`}
     >
       {label}

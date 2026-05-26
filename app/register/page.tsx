@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { env } from "@/lib/env";
 import { kanit } from "@/lib/fonts";
 import { RegisterForm, GoogleButton } from "@/components/auth/auth-forms";
@@ -20,6 +21,8 @@ export default async function RegisterPage({
   searchParams: Promise<{ callbackUrl?: string }>;
 }) {
   const { callbackUrl = "/dashboard" } = await searchParams;
+  // prod (มี Google): ปิดสมัครด้วย email → เด้งไปหน้า login (Google)
+  if (googleEnabled) redirect(`/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`);
 
   return (
     <main className="flex flex-1 items-center justify-center px-6 py-16">

@@ -43,28 +43,24 @@ export default async function SignInPage({
             </p>
           )}
 
-          <LoginForm callbackUrl={callbackUrl} />
-
-          {googleEnabled && (
+          {googleEnabled ? (
+            // prod: ใช้ Google อย่างเดียว
+            <GoogleButton callbackUrl={callbackUrl} />
+          ) : (
+            // local/dev (ไม่มี Google creds): ใช้ email+password
             <>
-              <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                <span className="h-px flex-1 bg-border" />
-                หรือ
-                <span className="h-px flex-1 bg-border" />
-              </div>
-              <GoogleButton callbackUrl={callbackUrl} />
+              <LoginForm callbackUrl={callbackUrl} />
+              <p className="text-center text-sm text-muted-foreground">
+                ยังไม่มีบัญชี?{" "}
+                <Link
+                  href={`/register?callbackUrl=${encodeURIComponent(callbackUrl)}`}
+                  className="text-primary underline"
+                >
+                  สมัครสมาชิก
+                </Link>
+              </p>
             </>
           )}
-
-          <p className="text-center text-sm text-muted-foreground">
-            ยังไม่มีบัญชี?{" "}
-            <Link
-              href={`/register?callbackUrl=${encodeURIComponent(callbackUrl)}`}
-              className="text-primary underline"
-            >
-              สมัครสมาชิก
-            </Link>
-          </p>
         </CardContent>
       </Card>
     </main>

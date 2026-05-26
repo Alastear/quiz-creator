@@ -46,9 +46,10 @@ export async function registerUser(
     return { ok: false, error: "อีเมลนี้ถูกใช้แล้ว ลองเข้าสู่ระบบ" };
 
   const passwordHash = await bcrypt.hash(parsed.data.password, 10);
-  await db
+  const [created] = await db
     .insert(users)
-    .values({ email, name: parsed.data.name || null, passwordHash });
+    .values({ email, name: parsed.data.name || null, passwordHash })
+    .returning({ id: users.id });
 
   // สร้าง token ยืนยันอีเมล (เก็บใน verification_tokens)
   const token = crypto.randomBytes(32).toString("hex");
@@ -59,18 +60,30 @@ export async function registerUser(
   });
 
   const url = `${env.NEXT_PUBLIC_APP_URL}/api/auth/verify-email?email=${encodeURIComponent(email)}&token=${token}`;
-  await emailer.send({
-    to: email,
-    subject: "ยืนยันอีเมลสำหรับ Quibby",
-    body: [
-      "สวัสดี! 👋",
-      "",
-      "ยืนยันอีเมลเพื่อเริ่มใช้งาน Quibby (คลิกครั้งเดียว ลิงก์ใช้ได้ 24 ชม.):",
-      url,
-      "",
-      "ถ้าคุณไม่ได้สมัคร ละเว้นอีเมลนี้ได้เลย",
-    ].join("\n"),
-  });
+  try {
+    await emailer.send({
+      to: email,
+      subject: "ยืนยันอีเมลสำหรับ Quibby",
+      body: [
+        "สวัสดี! 👋",
+        "",
+        "ยืนยันอีเมลเพื่อเริ่มใช้งาน Quibby (คลิกครั้งเดียว ลิงก์ใช้ได้ 24 ชม.):",
+        url,
+        "",
+        "ถ้าคุณไม่ได้สมัคร ละเว้นอีเมลนี้ได้เลย",
+      ].join("\n"),
+    });
+  } catch (e) {
+    // ส่งอีเมลไม่สำเร็จ → ลบ user + token ที่เพิ่งสร้าง กันค้างแบบ verify ไม่ได้
+    await db.delete(users).where(eq(users.id, created.id));
+    await db.delete(verificationTokens).where(eq(verificationTokens.identifier, email));
+    console.error("registerUser: email send failed", e);
+    return {
+      ok: false,
+      error:
+        "ส่งอีเมลยืนยันไม่สำเร็จ — ระบบอีเมลอาจยังไม่ได้ตั้งค่า ลองสมัครด้วย Google ไปก่อน",
+    };
+  }
 
   return { ok: true };
 }

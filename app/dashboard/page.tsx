@@ -2,11 +2,15 @@ import Link from "next/link";
 import { desc, eq } from "drizzle-orm";
 import { signOut } from "@/auth";
 import { db } from "@/lib/db";
-import { quizzes, users } from "@/lib/db/schema";
+import { quizzes } from "@/lib/db/schema";
 import { requireUser } from "@/lib/auth-helpers";
 import { createQuiz, republishQuizAction, restoreQuiz } from "@/lib/actions/quiz";
-import { extendQuizWithCredit } from "@/lib/actions/billing";
-import { FREE_ACTIVE_QUIZ_LIMIT } from "@/lib/entitlements";
+import {
+  MAX_ACTIVE_QUIZZES,
+  WEEKLY_CREATE_LIMIT,
+  QUIZ_LIFESPAN_DAYS,
+  weeklyCreateRemaining,
+} from "@/lib/entitlements";
 import { CreateQuizButton } from "@/components/dashboard/create-quiz-button";
 import { kanit } from "@/lib/fonts";
 import { Button } from "@/components/ui/button";
@@ -20,8 +24,14 @@ const STATUS_LABEL: Record<string, string> = {
   archived: "เก็บถาวร",
 };
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ notice?: string }>;
+}) {
   const user = await requireUser("/dashboard");
+  const { notice } = await searchParams;
+  const isAdmin = user.role === "admin";
 
   const myQuizzes = await db
     .select()
@@ -30,12 +40,10 @@ export default async function DashboardPage() {
     .orderBy(desc(quizzes.createdAt));
 
   const activeCount = myQuizzes.filter((q) => q.status === "published").length;
-
-  const [me] = await db
-    .select({ credits: users.quizCredits })
-    .from(users)
-    .where(eq(users.id, user.id))
-    .limit(1);
+  const weeklyLeft = await weeklyCreateRemaining({
+    id: user.id,
+    role: user.role,
+  });
 
   async function logout() {
     "use server";
@@ -56,9 +64,6 @@ export default async function DashboardPage() {
           <Button variant="ghost" size="sm" render={<Link href="/dashboard/settings" />}>
             ตั้งค่า
           </Button>
-          <Button variant="outline" size="sm" render={<Link href="/dashboard/billing" />}>
-            เครดิต {me?.credits ?? 0}
-          </Button>
           {user.role === "admin" && (
             <Button variant="secondary" size="sm" render={<Link href="/admin" />}>
               Admin
@@ -72,14 +77,44 @@ export default async function DashboardPage() {
         </div>
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
-        สวัสดี {user.name ?? user.email} · เผยแพร่อยู่ {activeCount}/
-        {FREE_ACTIVE_QUIZ_LIMIT} (แพ็กฟรี)
+        สวัสดี {user.name ?? user.email}
       </p>
 
-      <div className="mt-6">
+      {notice && (
+        <p className="mt-4 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+          {notice}
+        </p>
+      )}
+
+      {/* อธิบายโควตาช่วงใช้ฟรี */}
+      <div className="mt-4 rounded-lg border bg-muted/30 p-3 text-sm">
+        <p className="font-medium">🎉 ช่วงนี้ใช้งานฟรีทั้งหมด</p>
+        {isAdmin ? (
+          <p className="mt-1 text-muted-foreground">
+            คุณเป็นแอดมิน — สร้าง quiz ได้ไม่จำกัด
+          </p>
+        ) : (
+          <ul className="mt-1 space-y-0.5 text-muted-foreground">
+            <li>
+              • เผยแพร่อยู่ {activeCount}/{MAX_ACTIVE_QUIZZES} อัน
+            </li>
+            <li>
+              • สัปดาห์นี้สร้างได้อีก {weeklyLeft}/{WEEKLY_CREATE_LIMIT} อัน
+            </li>
+            <li>• quiz มีอายุ {QUIZ_LIFESPAN_DAYS} วันหลังเผยแพร่ (หมดอายุแล้วสร้างใหม่ได้)</li>
+          </ul>
+        )}
+      </div>
+
+      <div className="mt-4">
         <form action={createQuiz}>
           <CreateQuizButton />
         </form>
+        {!isAdmin && weeklyLeft === 0 && (
+          <p className="mt-2 text-xs text-amber-600">
+            สัปดาห์นี้สร้างครบ {WEEKLY_CREATE_LIMIT} อันแล้ว — รอสัปดาห์หน้า
+          </p>
+        )}
       </div>
 
       <ul className="mt-6 space-y-2">
@@ -103,13 +138,6 @@ export default async function DashboardPage() {
                 {" · "}เล่น {q.playCount} ครั้ง
               </p>
             </div>
-            {q.status === "published" && (
-              <form action={extendQuizWithCredit.bind(null, q.id)}>
-                <Button size="sm" variant="ghost" type="submit">
-                  ต่ออายุ +30 (1 เครดิต)
-                </Button>
-              </form>
-            )}
             {q.status === "published" && (
               <Button
                 size="sm"

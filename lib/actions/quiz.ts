@@ -2,18 +2,14 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { db } from "@/lib/db";
-import { quizzes, questions, choices, results, users } from "@/lib/db/schema";
+import { quizzes, questions, choices, results } from "@/lib/db/schema";
 import { getActor } from "@/lib/auth-helpers";
 import { quizDraftSchema, type QuizDraft } from "@/lib/validation/quiz";
 import { validateForPublish, type ScoringResult } from "@/lib/scoring";
-import {
-  countActiveQuizzes,
-  FREE_ACTIVE_QUIZ_LIMIT,
-  quizExpiry,
-} from "@/lib/entitlements";
+import { canCreateQuiz, canPublishQuiz, quizExpiry } from "@/lib/entitlements";
 import { restoreArchivedQuiz } from "@/lib/lifecycle";
 import { ratelimit } from "@/lib/ratelimit";
 
@@ -36,6 +32,11 @@ export async function createQuiz() {
     windowMs: 60_000,
   });
   if (!rl.success) throw new Error("สร้างถี่เกินไป ลองใหม่อีกครั้ง");
+
+  // โควตาสร้างต่อสัปดาห์ (admin ไม่จำกัด)
+  const gate = await canCreateQuiz({ id: user.id, role: user.role });
+  if (!gate.ok) redirect(`/dashboard?notice=${encodeURIComponent(gate.reason ?? "")}`);
+
   const quizId = crypto.randomUUID();
   const publicId = nanoid(12);
 
@@ -198,35 +199,15 @@ export async function publishQuiz(
   });
   if (errors.length) return { ok: false, errors };
 
-  // ตรวจโควตา/เครดิต: เกินฟรี 3 อัน ต้องมี credit แล้วหัก 1
-  const active = await countActiveQuizzes(user.id, quizId);
-  const overLimit = active >= FREE_ACTIVE_QUIZ_LIMIT;
-  const [u] = await db
-    .select({ credits: users.quizCredits })
-    .from(users)
-    .where(eq(users.id, user.id))
-    .limit(1);
-  if (overLimit && (u?.credits ?? 0) < 1)
-    return {
-      ok: false,
-      errors: [
-        `แพ็กฟรีเผยแพร่ได้ ${FREE_ACTIVE_QUIZ_LIMIT} quiz พร้อมกัน — ปล่อยอันเก่าให้หมดอายุ หรือซื้อเครดิตเพิ่มที่หน้า "เครดิต"`,
-      ],
-    };
+  // โควตา active (admin ไม่จำกัด) — ช่วงนี้ฟรี ไม่ใช้เครดิต
+  const gate = await canPublishQuiz({ id: user.id, role: user.role }, quizId);
+  if (!gate.ok) return { ok: false, errors: [gate.reason ?? "เผยแพร่ไม่ได้"] };
 
   const now = new Date();
-  await db.transaction(async (tx) => {
-    await tx
-      .update(quizzes)
-      .set({ status: "published", publishedAt: now, expiresAt: quizExpiry(now) })
-      .where(eq(quizzes.id, quizId));
-    if (overLimit) {
-      await tx
-        .update(users)
-        .set({ quizCredits: sql`${users.quizCredits} - 1` })
-        .where(eq(users.id, user.id));
-    }
-  });
+  await db
+    .update(quizzes)
+    .set({ status: "published", publishedAt: now, expiresAt: quizExpiry(now) })
+    .where(eq(quizzes.id, quizId));
 
   revalidatePath(`/create/${quizId}`);
   revalidatePath("/dashboard");

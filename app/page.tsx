@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Announcement } from "@/components/site/announcement";
 import { AdZone } from "@/components/ads/ad-zone";
 import { Logo } from "@/components/brand/logo";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 
 export const metadata = {
   title: "Quibby — สร้างและเล่น quiz สนุก ๆ",
@@ -71,7 +72,8 @@ export default async function Home({
         <Link href="/">
           <Logo />
         </Link>
-        <div className="ml-auto flex gap-2">
+        <div className="ml-auto flex items-center gap-2">
+          <ThemeToggle />
           {session?.user ? (
             <>
               <Button variant="outline" size="sm" render={<Link href="/dashboard" />}>

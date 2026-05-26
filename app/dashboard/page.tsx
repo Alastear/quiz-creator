@@ -12,6 +12,7 @@ import {
   getAllowance,
 } from "@/lib/entitlements";
 import { CreateQuizButton } from "@/components/dashboard/create-quiz-button";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { kanit } from "@/lib/fonts";
 import { Button } from "@/components/ui/button";
 
@@ -57,7 +58,8 @@ export default async function DashboardPage({
       </Link>
       <div className="flex items-center justify-between">
         <h1 className={`${kanit.className} text-2xl font-semibold`}>แดชบอร์ด</h1>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
           <Button variant="ghost" size="sm" render={<Link href="/dashboard/settings" />}>
             💰 รับโดเนท
           </Button>

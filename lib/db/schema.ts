@@ -33,15 +33,7 @@ export const users = pgTable("users", {
   quizCredits: integer("quiz_credits").notNull().default(0),
   // Creator Tip Jar (DESIGN.md ข้อ 10.5) — แพลตฟอร์มไม่ยุ่งกับเงิน แค่แปะให้
   creatorPayout: jsonb("creator_payout")
-    .$type<{
-      enabled?: boolean;
-      qrUrl?: string;
-      bankName?: string;
-      bankAccount?: string;
-      accountName?: string;
-      externalUrl?: string;
-      message?: string;
-    }>()
+    .$type<{ enabled?: boolean; qrUrl?: string }>()
     .notNull()
     .default({}),
   createdAt: timestamp("created_at", { withTimezone: true })

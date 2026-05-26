@@ -62,7 +62,7 @@ export default async function DashboardPage({
         <h1 className={`${kanit.className} text-2xl font-semibold`}>แดชบอร์ด</h1>
         <div className="flex gap-2">
           <Button variant="ghost" size="sm" render={<Link href="/dashboard/settings" />}>
-            ตั้งค่า
+            💰 รับโดเนท
           </Button>
           {user.role === "admin" && (
             <Button variant="secondary" size="sm" render={<Link href="/admin" />}>

@@ -8,14 +8,10 @@ import { users } from "@/lib/db/schema";
 import { getActor } from "@/lib/auth-helpers";
 import { ratelimit } from "@/lib/ratelimit";
 
+// รับเฉพาะ QR code (รูป) — ตัดข้อมูลตัวอักษรออกเพื่อกันข้อมูลส่วนตัวรั่ว/ถูกใช้ในทางไม่ดี
 const payoutSchema = z.object({
   enabled: z.boolean().default(false),
   qrUrl: z.string().trim().max(2000).optional(),
-  bankName: z.string().trim().max(100).optional(),
-  bankAccount: z.string().trim().max(50).optional(),
-  accountName: z.string().trim().max(100).optional(),
-  externalUrl: z.string().trim().max(2000).optional(),
-  message: z.string().trim().max(300).optional(),
 });
 
 export type CreatorPayout = z.infer<typeof payoutSchema>;

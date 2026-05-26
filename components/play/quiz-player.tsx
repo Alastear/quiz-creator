@@ -320,44 +320,17 @@ function ResultScreen({
         </Button>
       </div>
 
-      {/* Creator Tip Jar (DESIGN.md ข้อ 10.5) — แพลตฟอร์มไม่ยุ่งกับเงิน */}
+      {/* Creator Tip Jar (DESIGN.md ข้อ 10.5) — QR อย่างเดียว, แพลตฟอร์มไม่ยุ่งกับเงิน */}
       {result.creatorTip && (
         <div className="mt-4 w-full max-w-sm rounded-xl border p-4 text-center">
           <p className="font-medium">สนับสนุนผู้สร้าง</p>
-          {result.creatorTip.message && (
-            <p className="mt-1 text-sm text-muted-foreground">
-              {result.creatorTip.message}
-            </p>
-          )}
-          {result.creatorTip.qrUrl && (
-            <img
-              src={result.creatorTip.qrUrl}
-              alt="QR donate"
-              className="mx-auto mt-3 h-40 w-40 rounded object-contain"
-            />
-          )}
-          {(result.creatorTip.bankAccount || result.creatorTip.accountName) && (
-            <p className="mt-2 text-sm">
-              {result.creatorTip.bankName} {result.creatorTip.bankAccount}
-              {result.creatorTip.accountName && (
-                <span className="block text-xs text-muted-foreground">
-                  {result.creatorTip.accountName}
-                </span>
-              )}
-            </p>
-          )}
-          {result.creatorTip.externalUrl && (
-            <a
-              href={result.creatorTip.externalUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-2 inline-block text-sm text-primary underline"
-            >
-              ลิงก์สนับสนุน
-            </a>
-          )}
+          <img
+            src={result.creatorTip.qrUrl}
+            alt="QR donate"
+            className="mx-auto mt-3 h-48 w-48 rounded object-contain"
+          />
           <p className="mt-3 text-[11px] text-muted-foreground">
-            ช่องทางนี้เป็นของผู้สร้าง quiz เอง Quibby ไม่เกี่ยวข้องกับการโอนเงิน
+            QR นี้เป็นของผู้สร้าง quiz เอง Quibby ไม่เกี่ยวข้องกับการโอนเงิน
             โปรดตรวจสอบก่อนโอน
           </p>
         </div>

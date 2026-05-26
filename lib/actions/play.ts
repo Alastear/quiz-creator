@@ -15,14 +15,7 @@ export type PlayResult = {
   shareText: string | null;
   showProbabilityBar: boolean;
   distribution: { title: string; pct: number }[];
-  creatorTip: {
-    qrUrl?: string;
-    bankName?: string;
-    bankAccount?: string;
-    accountName?: string;
-    externalUrl?: string;
-    message?: string;
-  } | null;
+  creatorTip: { qrUrl: string } | null;
 };
 
 /**
@@ -116,17 +109,7 @@ export async function submitPlay(
     .where(eq(users.id, quiz.ownerId))
     .limit(1);
   const p = owner?.payout;
-  const creatorTip =
-    p?.enabled && (p.qrUrl || p.bankAccount || p.externalUrl)
-      ? {
-          qrUrl: p.qrUrl,
-          bankName: p.bankName,
-          bankAccount: p.bankAccount,
-          accountName: p.accountName,
-          externalUrl: p.externalUrl,
-          message: p.message,
-        }
-      : null;
+  const creatorTip = p?.enabled && p.qrUrl ? { qrUrl: p.qrUrl } : null;
 
   await db.transaction(async (tx) => {
     await tx.insert(plays).values({

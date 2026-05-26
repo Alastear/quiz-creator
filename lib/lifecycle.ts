@@ -8,19 +8,26 @@ import {
   plays,
   quizArchives,
 } from "@/lib/db/schema";
+import { refundAllowance } from "@/lib/entitlements";
 
 // อายุ/ระยะเวลา (DESIGN.md ข้อ 9)
 export const ARCHIVE_GRACE_DAYS = 3; // expired กี่วันก่อนถูก archive
 export const RESTORE_WINDOW_DAYS = 90; // archive กู้คืนได้ภายในกี่วัน
 const DAY = 24 * 60 * 60 * 1000;
 
-/** quiz ที่ published แล้วเลยวันหมดอายุ → expired */
+/** quiz ที่ published แล้วเลยวันหมดอายุ → expired (+ คืนสิทธิ์สร้างให้เจ้าของ) */
 export async function expirePublished(now: Date = new Date()): Promise<number> {
   const rows = await db
     .update(quizzes)
     .set({ status: "expired" })
     .where(and(eq(quizzes.status, "published"), lt(quizzes.expiresAt, now)))
-    .returning({ id: quizzes.id });
+    .returning({ id: quizzes.id, ownerId: quizzes.ownerId });
+
+  // คืนสิทธิ์ +1 ต่อ quiz ที่หมดอายุ (รวมตามเจ้าของ)
+  const perOwner = new Map<string, number>();
+  for (const r of rows) perOwner.set(r.ownerId, (perOwner.get(r.ownerId) ?? 0) + 1);
+  for (const [ownerId, n] of perOwner) await refundAllowance(ownerId, n);
+
   return rows.length;
 }
 

@@ -9,7 +9,7 @@ import { quizzes, questions, choices, results } from "@/lib/db/schema";
 import { getActor } from "@/lib/auth-helpers";
 import { quizDraftSchema, type QuizDraft } from "@/lib/validation/quiz";
 import { validateForPublish, type ScoringResult } from "@/lib/scoring";
-import { canCreateQuiz, canPublishQuiz, quizExpiry } from "@/lib/entitlements";
+import { consumeAllowance, refundAllowance, quizExpiry } from "@/lib/entitlements";
 import { restoreArchivedQuiz } from "@/lib/lifecycle";
 import { ratelimit } from "@/lib/ratelimit";
 
@@ -33,8 +33,8 @@ export async function createQuiz() {
   });
   if (!rl.success) throw new Error("สร้างถี่เกินไป ลองใหม่อีกครั้ง");
 
-  // โควตาสร้างต่อสัปดาห์ (admin ไม่จำกัด)
-  const gate = await canCreateQuiz({ id: user.id, role: user.role });
+  // ใช้สิทธิ์การสร้าง 1 (admin ไม่จำกัด) — หมดสิทธิ์ → เด้งกลับพร้อมเหตุผล
+  const gate = await consumeAllowance({ id: user.id, role: user.role });
   if (!gate.ok) redirect(`/dashboard?notice=${encodeURIComponent(gate.reason ?? "")}`);
 
   const quizId = crypto.randomUUID();
@@ -199,10 +199,7 @@ export async function publishQuiz(
   });
   if (errors.length) return { ok: false, errors };
 
-  // โควตา active (admin ไม่จำกัด) — ช่วงนี้ฟรี ไม่ใช้เครดิต
-  const gate = await canPublishQuiz({ id: user.id, role: user.role }, quizId);
-  if (!gate.ok) return { ok: false, errors: [gate.reason ?? "เผยแพร่ไม่ได้"] };
-
+  // เผยแพร่ได้เลย (สิทธิ์ถูกใช้ตั้งแต่ตอนสร้างแล้ว)
   const now = new Date();
   await db
     .update(quizzes)
@@ -229,6 +226,7 @@ export async function deleteQuiz(quizId: string) {
   const user = await getActor();
   await getOwnedQuiz(quizId, user.id);
   await db.delete(quizzes).where(eq(quizzes.id, quizId));
+  await refundAllowance(user.id); // ลบแล้วคืนสิทธิ์สร้าง +1
   revalidatePath("/dashboard");
   redirect("/dashboard");
 }

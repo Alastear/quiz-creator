@@ -31,6 +31,11 @@ export const users = pgTable("users", {
   status: userStatus("status").notNull().default("active"),
   plan: userPlan("plan").notNull().default("free"),
   quizCredits: integer("quiz_credits").notNull().default(0),
+  // โควตาสร้าง quiz (ถังสิทธิ์) — เติม +2 ทุกวันจันทร์ เพดาน 10 (DESIGN.md ข้อ 10.3)
+  createAllowance: integer("create_allowance").notNull().default(10),
+  allowanceRefilledAt: timestamp("allowance_refilled_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
   // Creator Tip Jar (DESIGN.md ข้อ 10.5) — แพลตฟอร์มไม่ยุ่งกับเงิน แค่แปะให้
   creatorPayout: jsonb("creator_payout")
     .$type<{ enabled?: boolean; qrUrl?: string }>()

@@ -1,0 +1,2 @@
+ALTER TABLE "users" ADD COLUMN "create_allowance" integer DEFAULT 10 NOT NULL;--> statement-breakpoint
+ALTER TABLE "users" ADD COLUMN "allowance_refilled_at" timestamp with time zone DEFAULT now() NOT NULL;

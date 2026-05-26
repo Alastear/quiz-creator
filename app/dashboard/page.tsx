@@ -6,10 +6,10 @@ import { quizzes } from "@/lib/db/schema";
 import { requireUser } from "@/lib/auth-helpers";
 import { createQuiz, republishQuizAction, restoreQuiz } from "@/lib/actions/quiz";
 import {
-  MAX_ACTIVE_QUIZZES,
-  WEEKLY_CREATE_LIMIT,
+  MAX_ALLOWANCE,
+  WEEKLY_REFILL,
   QUIZ_LIFESPAN_DAYS,
-  weeklyCreateRemaining,
+  getAllowance,
 } from "@/lib/entitlements";
 import { CreateQuizButton } from "@/components/dashboard/create-quiz-button";
 import { kanit } from "@/lib/fonts";
@@ -40,10 +40,7 @@ export default async function DashboardPage({
     .orderBy(desc(quizzes.createdAt));
 
   const activeCount = myQuizzes.filter((q) => q.status === "published").length;
-  const weeklyLeft = await weeklyCreateRemaining({
-    id: user.id,
-    role: user.role,
-  });
+  const allowance = await getAllowance({ id: user.id, role: user.role });
 
   async function logout() {
     "use server";
@@ -96,12 +93,15 @@ export default async function DashboardPage({
         ) : (
           <ul className="mt-1 space-y-0.5 text-muted-foreground">
             <li>
-              • เผยแพร่อยู่ {activeCount}/{MAX_ACTIVE_QUIZZES} อัน
+              • สิทธิ์การสร้างคงเหลือ{" "}
+              <span className="font-medium text-foreground">
+                {allowance}/{MAX_ALLOWANCE}
+              </span>{" "}
+              อัน
             </li>
-            <li>
-              • สัปดาห์นี้สร้างได้อีก {weeklyLeft}/{WEEKLY_CREATE_LIMIT} อัน
-            </li>
-            <li>• quiz มีอายุ {QUIZ_LIFESPAN_DAYS} วันหลังเผยแพร่ (หมดอายุแล้วสร้างใหม่ได้)</li>
+            <li>• เติมให้ +{WEEKLY_REFILL} ทุกวันจันทร์ (ไม่เกิน {MAX_ALLOWANCE})</li>
+            <li>• quiz มีอายุ {QUIZ_LIFESPAN_DAYS} วัน · ลบหรือหมดอายุแล้วได้สิทธิ์คืน</li>
+            <li>• เผยแพร่อยู่ {activeCount} อัน</li>
           </ul>
         )}
       </div>
@@ -110,9 +110,9 @@ export default async function DashboardPage({
         <form action={createQuiz}>
           <CreateQuizButton />
         </form>
-        {!isAdmin && weeklyLeft === 0 && (
+        {!isAdmin && allowance === 0 && (
           <p className="mt-2 text-xs text-amber-600">
-            สัปดาห์นี้สร้างครบ {WEEKLY_CREATE_LIMIT} อันแล้ว — รอสัปดาห์หน้า
+            สิทธิ์การสร้างหมดแล้ว — เติม +{WEEKLY_REFILL} ทุกวันจันทร์ หรือลบ quiz เก่าเพื่อคืนสิทธิ์
           </p>
         )}
       </div>

@@ -1,0 +1,12 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="quibby" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8b5cf6" />
+      <stop offset="1" stop-color="#ec4899" />
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="8" fill="url(#quibby)" />
+  <circle cx="15" cy="15.5" r="6.3" fill="none" stroke="#fff" stroke-width="3" />
+  <line x1="17.4" y1="17.9" x2="22" y2="22.5" stroke="#fff" stroke-width="3.3" stroke-linecap="round" />
+  <path d="M23 8l.72 1.86L25.6 10.6l-1.88.74L23 13.2l-.72-1.86L20.4 10.6l1.88-.74z" fill="#fff" opacity="0.95" />
+</svg>

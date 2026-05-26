@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Announcement } from "@/components/site/announcement";
 import { AdZone } from "@/components/ads/ad-zone";
+import { Logo } from "@/components/brand/logo";
 
 export const metadata = {
   title: "Quibby — สร้างและเล่น quiz สนุก ๆ",
@@ -61,8 +62,8 @@ export default async function Home({
 
       {/* nav */}
       <header className="flex items-center gap-3 px-6 py-4">
-        <Link href="/" className={`${kanit.className} text-xl font-bold`}>
-          Quibby
+        <Link href="/">
+          <Logo />
         </Link>
         <div className="ml-auto flex gap-2">
           <Button variant="ghost" size="sm" render={<Link href="/signin" />}>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth-helpers";
 import { kanit } from "@/lib/fonts";
+import { LogoMark } from "@/components/brand/logo";
 
 export const metadata = { title: "Admin · Quibby" };
 
@@ -25,8 +26,9 @@ export default async function AdminLayout({
   return (
     <div className="flex min-h-full flex-1">
       <aside className="w-48 shrink-0 border-r p-4">
-        <Link href="/admin" className={`${kanit.className} text-lg font-bold`}>
-          Quibby Admin
+        <Link href="/admin" className="inline-flex items-center gap-2">
+          <LogoMark size={24} />
+          <span className={`${kanit.className} text-lg font-bold`}>Admin</span>
         </Link>
         <nav className="mt-6 flex flex-col gap-1">
           {NAV.map((n) => (

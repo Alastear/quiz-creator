@@ -63,8 +63,9 @@ export default async function CreatePage({
       mediaType: r.mediaType,
       mediaUrl: r.mediaUrl ?? undefined,
       shareText: r.shareText ?? undefined,
-      scoreMin: r.scoreMin,
-      scoreMax: r.scoreMax,
+      // default 0 (ไม่ใช่ null) ให้ค่าที่โชว์ตรงกับค่าจริงในฟอร์ม
+      scoreMin: r.scoreMin ?? 0,
+      scoreMax: r.scoreMax ?? 0,
     })),
     questions: qs.map((q) => ({
       kind: q.kind,

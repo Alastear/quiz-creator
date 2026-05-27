@@ -66,11 +66,7 @@ export function scoreRange(
 
   const ordered = [...results].sort((a, b) => a.orderIndex - b.orderIndex);
   const inRange = ordered.find(
-    (r) =>
-      r.scoreMin !== null &&
-      r.scoreMax !== null &&
-      total >= r.scoreMin &&
-      total <= r.scoreMax,
+    (r) => total >= (r.scoreMin ?? 0) && total <= (r.scoreMax ?? 0),
   );
   if (inRange) return { resultKey: inRange.resultKey, total };
 
@@ -133,10 +129,13 @@ export function validateForPublish(input: ValidationInput): string[] {
 
   if (logic === "range") {
     for (const r of results) {
-      if (r.scoreMin === null || r.scoreMax === null)
-        errors.push(`ผลลัพธ์ "${r.resultKey}" ต้องกำหนดช่วงคะแนน`);
-      else if (r.scoreMin > r.scoreMax)
-        errors.push(`ผลลัพธ์ "${r.resultKey}" ช่วงคะแนนไม่ถูกต้อง`);
+      // มองค่าว่างเป็น 0 — ผิดเฉพาะตอน "ต่ำสุด > สูงสุด" เท่านั้น
+      const min = r.scoreMin ?? 0;
+      const max = r.scoreMax ?? 0;
+      if (min > max)
+        errors.push(
+          `ผลลัพธ์ "${r.resultKey}" ช่วงคะแนนไม่ถูกต้อง (ต่ำสุดมากกว่าสูงสุด)`,
+        );
     }
   }
 

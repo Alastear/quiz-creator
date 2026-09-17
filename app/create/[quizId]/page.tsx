@@ -5,6 +5,7 @@ import { quizzes, questions, choices, results } from "@/lib/db/schema";
 import { requireUser } from "@/lib/auth-helpers";
 import { QuizBuilder } from "@/components/builder/quiz-builder";
 import type { QuizDraft } from "@/lib/validation/quiz";
+import { aiAvailable } from "@/lib/ai";
 
 export const metadata = { title: "สร้าง quiz · Quibby" };
 
@@ -91,6 +92,7 @@ export default async function CreatePage({
         publicId={quiz.publicId}
         status={quiz.status}
         initial={initial}
+        aiReady={aiAvailable()}
       />
     </main>
   );

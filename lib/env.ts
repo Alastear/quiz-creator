@@ -11,6 +11,14 @@ const schema = z.object({
 
   RATELIMIT_DRIVER: z.enum(["memory", "upstash"]).default("memory"),
   EMAIL_DRIVER: z.enum(["console", "resend"]).default("console"),
+  // AI วิเคราะห์คำตอบ: off (ปิดทั้งระบบ) | gemini
+  AI_DRIVER: z.enum(["off", "gemini"]).default("off"),
+  GEMINI_API_KEY: z.string().optional(),
+  // ชื่อรุ่นตาม Google Generative Language API — เปลี่ยนได้โดยไม่ต้องแก้โค้ด
+  GEMINI_MODEL: z.string().default("gemini-3.1-flash-lite"),
+  GEMINI_BASE_URL: z
+    .string()
+    .default("https://generativelanguage.googleapis.com/v1beta"),
   // Payment: mock (จ่ายแล้วได้ credit ทันที, dev) | stripe (prod)
   PAYMENT_DRIVER: z.enum(["mock", "stripe"]).default("mock"),
   STRIPE_SECRET_KEY: z.string().optional(),

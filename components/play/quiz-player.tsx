@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { submitPlay, type PlayResult } from "@/lib/actions/play";
 import { QUIZ_FONTS, type QuizFontKey } from "@/lib/fonts";
+import { DIMENSION_AXES } from "@/lib/mbti";
 import { Button } from "@/components/ui/button";
 
 type PlayChoice = { id: string; labelText: string; mediaUrl: string | null };
@@ -39,6 +40,12 @@ export function QuizPlayer({
     Record<string, { choiceId?: string; text?: string }>
   >({});
   const [textVal, setTextVal] = useState("");
+  // ข้อความผิดพลาดตอนส่งคำตอบ (quiz แนว MBTI พึ่ง AI จึงพลาดได้จริง)
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  // เก็บคำตอบชุดล่าสุดไว้ให้กด "ลองอีกครั้ง" ได้โดยไม่ต้องเล่นใหม่
+  const [lastPayload, setLastPayload] = useState<
+    { questionId: string; choiceId?: string; text?: string }[] | null
+  >(null);
   const [result, setResult] = useState<PlayResult | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -58,12 +65,26 @@ export function QuizPlayer({
         questionId: qid,
         ...a,
       }));
-      startTransition(async () => {
-        const r = await submitPlay(publicId, payload);
-        setResult(r);
-        setPhase("result");
-      });
+      setLastPayload(payload);
+      send(payload);
     }
+  }
+
+  function send(payload: { questionId: string; choiceId?: string; text?: string }[]) {
+    startTransition(async () => {
+      setSubmitError(null);
+      try {
+        const r = await submitPlay(publicId, payload);
+        if (!r.ok) {
+          setSubmitError(r.error);
+          return;
+        }
+        setResult(r.result);
+        setPhase("result");
+      } catch {
+        setSubmitError("ส่งคำตอบไม่สำเร็จ ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง");
+      }
+    });
   }
 
   return (
@@ -165,6 +186,27 @@ export function QuizPlayer({
               {index + 1 < questions.length ? "ถัดไป" : "ดูผลลัพธ์"}
             </Button>
           )}
+
+          {/* ส่งคำตอบไม่สำเร็จ — ให้กดซ้ำได้โดยไม่ต้องตอบใหม่ทั้งชุด */}
+          {submitError && (
+            <div className="mt-2 rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-left">
+              <p className="text-sm text-destructive">{submitError}</p>
+              {lastPayload && (
+                <Button
+                  className="mt-3"
+                  variant="outline"
+                  disabled={pending}
+                  onClick={() => send(lastPayload)}
+                >
+                  {pending ? "กำลังส่ง…" : "ลองอีกครั้ง"}
+                </Button>
+              )}
+            </div>
+          )}
+
+          {pending && !submitError && (
+            <p className="text-sm text-muted-foreground">กำลังประมวลผล…</p>
+          )}
         </div>
       )}
 
@@ -247,7 +289,9 @@ function ResultScreen({
   return (
     <div className="flex flex-1 flex-col items-center gap-4">
       <div className="flex w-full flex-col items-center gap-3 rounded-xl bg-background p-6 text-center">
-        <p className="text-sm text-muted-foreground">ผลลัพธ์ของคุณคือ</p>
+        <p className="text-sm text-muted-foreground">
+          {result.mbti ? "ใกล้เคียงคุณมากที่สุด" : "ผลลัพธ์ของคุณคือ"}
+        </p>
         {result.mediaUrl && (
           <img
             src={result.mediaUrl}
@@ -277,6 +321,142 @@ function ResultScreen({
         )}
         <p className="pt-2 text-xs text-muted-foreground">เล่นที่ Quibby</p>
       </div>
+
+      {/* รายละเอียด MBTI — เฉพาะ quiz ที่ให้ AI ตัดสินผล */}
+      {result.mbti && (
+        <section className="w-full rounded-xl border bg-background p-5 text-left">
+          <h2 className="mb-1 text-sm font-semibold">
+            MBTI ที่เข้ากับคุณ เรียงตามความใกล้เคียง
+          </h2>
+          <p className="mb-4 text-xs text-muted-foreground">
+            AI ให้คะแนน cognitive function ทั้ง 8 ตัวจากคำตอบของคุณ แล้วระบบคำนวณว่า
+            โปรไฟล์นี้ใกล้กับ MBTI แบบไหนบ้าง — คนส่วนใหญ่คาบเกี่ยวหลายแบบ
+            ไม่ได้เป็นแบบใดแบบหนึ่งเต็มร้อย
+          </p>
+
+          <ol className="mb-6 space-y-2">
+            {result.mbti.ranking.map((m, i) => (
+              <li key={m.type}>
+                <div className="flex items-baseline gap-2 text-sm">
+                  <span className="w-4 shrink-0 text-xs text-muted-foreground">
+                    {i + 1}
+                  </span>
+                  <span className={i === 0 ? "font-bold" : "font-medium"}>
+                    {m.type}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+                    {m.title}
+                  </span>
+                  <span
+                    className={
+                      i === 0 ? "text-sm font-semibold" : "text-xs text-muted-foreground"
+                    }
+                  >
+                    {m.fit}%
+                  </span>
+                </div>
+                <div className="mt-1 ml-6 h-2 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full bg-primary"
+                    style={{ width: `${m.fit}%`, opacity: i === 0 ? 1 : 0.45 }}
+                  />
+                </div>
+              </li>
+            ))}
+          </ol>
+
+          <h3 className="mb-3 text-sm font-semibold">รายมิติของอันดับ 1</h3>
+
+          {/* 4 มิติ — แถบเอนไปทางฝั่งที่ชนะตามน้ำหนักที่ AI ให้ */}
+          <div className="space-y-3">
+            {result.mbti.dimensions.map((d) => {
+              const ax = DIMENSION_AXES.find((a) => a.axis === d.axis);
+              if (!ax) return null;
+              const leftWins = d.pick === ax.left;
+              const leftPct = leftWins ? d.strength : 100 - d.strength;
+              return (
+                <div key={d.axis}>
+                  <div className="flex justify-between text-xs">
+                    <span className={leftWins ? "font-semibold" : "text-muted-foreground"}>
+                      {ax.left} · {ax.leftName}
+                    </span>
+                    <span className={!leftWins ? "font-semibold" : "text-muted-foreground"}>
+                      {ax.rightName} · {ax.right}
+                    </span>
+                  </div>
+                  <div className="mt-1 flex h-2 w-full overflow-hidden rounded-full bg-muted">
+                    <div className="h-full bg-primary" style={{ width: `${leftPct}%` }} />
+                    <div className="h-full bg-primary/25" style={{ width: `${100 - leftPct}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* cognitive function เรียงจากเด่นสุด */}
+          <h3 className="mt-6 mb-1 text-sm font-semibold">
+            คะแนน cognitive function ทั้ง 8 ตัว
+          </h3>
+          <p className="mb-3 text-xs text-muted-foreground">
+            วัดแยกกันอิสระ ไม่ได้บังคับให้เข้ารูป stack ของชนิดใดชนิดหนึ่ง
+          </p>
+          <ol className="space-y-2">
+            {result.mbti.functions.map((f, i) => (
+              <li
+                key={f.code}
+                className="flex gap-3 rounded-lg border bg-muted/30 p-3"
+              >
+                <span className="w-7 shrink-0 text-center text-base font-bold">
+                  {f.code}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-baseline gap-x-2">
+                    <span className="text-sm font-medium">{f.nick || f.thai}</span>
+                    {f.stackLabel && (
+                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] text-primary">
+                        {f.stackLabel}
+                      </span>
+                    )}
+                    <span className="ml-auto text-xs text-muted-foreground">
+                      {f.strength}%
+                    </span>
+                  </div>
+                  <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full bg-primary"
+                      style={{ width: `${f.strength}%`, opacity: 1 - i * 0.08 }}
+                    />
+                  </div>
+                  {f.note && (
+                    <p className="mt-1.5 text-xs text-muted-foreground">{f.note}</p>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ol>
+          <p className="mt-3 text-xs text-muted-foreground">
+            ป้าย &ldquo;ฟังก์ชันหลัก/รอง/ตติยะ/ด้อย&rdquo; คือตำแหน่งตามทฤษฎีของ{" "}
+            {result.mbti.type} ส่วนตัวเลขคือคะแนนที่ AI ให้จากคำตอบจริงของคุณ —
+            อ่านสนุก ๆ ไม่ใช่เครื่องมือวินิจฉัย
+          </p>
+        </section>
+      )}
+
+      {/* บทวิเคราะห์ AI — โผล่เฉพาะ quiz ที่เปิดไว้และเรียกสำเร็จ */}
+      {result.aiAnalysis && (
+        <section className="w-full rounded-xl border bg-background p-5 text-left">
+          <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold">
+            <span aria-hidden>✨</span>
+            บทวิเคราะห์เพิ่มเติมจาก AI
+          </h2>
+          <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
+            {result.aiAnalysis}
+          </p>
+          <p className="mt-3 text-xs text-muted-foreground">
+            เขียนโดย AI จากคำตอบที่คุณพิมพ์ — อ่านสนุก ๆ ไม่ใช่คำวินิจฉัย
+          </p>
+        </section>
+      )}
 
       {toast && <p className="text-sm text-muted-foreground">{toast}</p>}
 

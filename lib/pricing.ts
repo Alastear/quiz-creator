@@ -20,3 +20,7 @@ export const DONATION_MAX = 5000;
 export const EXTEND_DAYS = 30;
 export const EXTEND_COST_CREDITS = 1; // ต่ออายุ +30 วัน
 export const EXTRA_QUIZ_COST_CREDITS = 1; // เผยแพร่เกินโควตาฟรี
+
+// เปิดบทวิเคราะห์ AI ต่อ 1 quiz (จ่ายครั้งเดียว ไม่จำกัดจำนวนคนเล่น)
+// คิดแพงกว่าเผยแพร่ธรรมดาเพราะมีต้นทุน API ต่อรอบเล่น
+export const AI_ANALYSIS_COST_CREDITS = 2;

@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { nanoid } from "nanoid";
 import { saveQuiz, publishQuiz, unpublishQuiz } from "@/lib/actions/quiz";
+import { enableAiAnalysis, disableAiAnalysis } from "@/lib/actions/billing";
+import { AI_ANALYSIS_COST_CREDITS } from "@/lib/pricing";
 import type { QuizDraft } from "@/lib/validation/quiz";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,9 +32,17 @@ type Props = {
   publicId: string;
   status: string;
   initial: QuizDraft;
+  /** ระบบ AI ตั้งค่าพร้อมใช้หรือยัง (มี driver + key) */
+  aiReady: boolean;
 };
 
-export function QuizBuilder({ quizId, publicId, status, initial }: Props) {
+export function QuizBuilder({
+  quizId,
+  publicId,
+  status,
+  initial,
+  aiReady,
+}: Props) {
   const router = useRouter();
   const [draft, setDraft] = useState<QuizDraft>(initial);
   const [msg, setMsg] = useState<string | null>(null);
@@ -217,6 +227,58 @@ export function QuizBuilder({ quizId, publicId, status, initial }: Props) {
             />
             แสดงแถบ % ความใกล้เคียงผลลัพธ์อื่น (probability bar)
           </label>
+
+          {/* บทวิเคราะห์ AI — เปิดครั้งเดียวจ่ายครั้งเดียว ไม่ผูกกับปุ่มบันทึก */}
+          <div className="rounded-lg border p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="text-sm font-medium">
+                  ✨ บทวิเคราะห์เพิ่มเติมจาก AI
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  AI อ่านคำตอบแบบ &ldquo;พิมพ์ตอบ&rdquo; แล้วเขียนบทวิเคราะห์ท้ายผลลัพธ์
+                  — ต้องมีคำถามแบบพิมพ์ตอบอย่างน้อย 1 ข้อ
+                </p>
+              </div>
+              {draft.settings.aiAnalysis ? (
+                <Button
+                  variant="outline"
+                  disabled={pending}
+                  onClick={() =>
+                    startTransition(async () => {
+                      await disableAiAnalysis(quizId);
+                      update((d) => void (d.settings.aiAnalysis = false));
+                      setMsg("ปิดบทวิเคราะห์ AI แล้ว (เปิดใหม่ต้องจ่ายอีกครั้ง)");
+                    })
+                  }
+                >
+                  เปิดอยู่ · กดเพื่อปิด
+                </Button>
+              ) : (
+                <Button
+                  disabled={pending || !aiReady}
+                  onClick={() =>
+                    startTransition(async () => {
+                      const res = await enableAiAnalysis(quizId);
+                      if (res.ok) {
+                        update((d) => void (d.settings.aiAnalysis = true));
+                        setMsg("เปิดบทวิเคราะห์ AI แล้ว");
+                      } else {
+                        setMsg(res.error ?? "เปิดไม่สำเร็จ");
+                      }
+                    })
+                  }
+                >
+                  เปิดใช้ ({AI_ANALYSIS_COST_CREDITS} เครดิต)
+                </Button>
+              )}
+            </div>
+            {!aiReady && !draft.settings.aiAnalysis && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                ระบบ AI ยังไม่ได้ตั้งค่าบนเซิร์ฟเวอร์ — ตอนนี้ยังเปิดไม่ได้
+              </p>
+            )}
+          </div>
         </CardContent>
       </Card>
 

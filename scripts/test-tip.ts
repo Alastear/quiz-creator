@@ -25,10 +25,12 @@ async function main() {
     choiceId: cs.find((c) => c.question_id === q.id && c.order_index === 0)!.id,
   }));
 
-  const result = await submitPlay(publicId, answers);
+  const res = await submitPlay(publicId, answers);
+  assert.ok(res.ok, `submitPlay ไม่สำเร็จ: ${res.ok ? "" : res.error}`);
+  const result = res.result;
   assert.ok(result.creatorTip, "creatorTip ควรไม่ null");
-  assert.equal(result.creatorTip!.bankAccount, "123-4-56789-0", "bankAccount");
-  console.log(`✓ tip jar: ${result.creatorTip!.bankName} ${result.creatorTip!.bankAccount} — "${result.creatorTip!.message}"`);
+  assert.ok(result.creatorTip!.qrUrl, "qrUrl ควรมีค่า");
+  console.log(`✓ tip jar: qrUrl=${result.creatorTip!.qrUrl}`);
   await sql.end();
   process.exit(0);
 }

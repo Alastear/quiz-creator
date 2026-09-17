@@ -23,7 +23,7 @@ export const questionDraftSchema = z.object({
   mediaType: mediaTypeSchema.default("none"),
   mediaUrl: mediaUrlSchema,
   // มีตัวเลือกเฉพาะ kind=choice (text/story เป็น array ว่างได้)
-  choices: z.array(choiceDraftSchema).max(6).default([]),
+  choices: z.array(choiceDraftSchema).max(8).default([]),
 });
 
 export const resultDraftSchema = z.object({
@@ -55,10 +55,16 @@ export const quizDraftSchema = z.object({
   resultLogic: z.enum(["archetype", "range"]),
   theme: z.object({ fontFamily: z.string().optional() }).default({}),
   settings: z
-    .object({ showProbabilityBar: z.boolean().optional() })
+    .object({
+      showProbabilityBar: z.boolean().optional(),
+      // เปิดบทวิเคราะห์ AI ท้ายผลลัพธ์ (เสียเครดิตตอนเปิด — ดู lib/pricing.ts)
+      aiAnalysis: z.boolean().optional(),
+      // ให้ AI ตัดสินผลลัพธ์แทนเครื่องคิดคะแนน (ตั้งจาก seed เท่านั้น ยังไม่เปิดให้ผู้ใช้ทั่วไป)
+      aiScoring: z.boolean().optional(),
+    })
     .default({}),
-  results: z.array(resultDraftSchema).min(1).max(10),
-  questions: z.array(questionDraftSchema).max(50),
+  results: z.array(resultDraftSchema).min(1).max(20),
+  questions: z.array(questionDraftSchema).max(100),
 });
 
 export type ChoiceDraft = z.infer<typeof choiceDraftSchema>;

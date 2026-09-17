@@ -24,7 +24,9 @@ async function main() {
   }));
 
   const before = Number(quiz.play_count);
-  const result = await submitPlay(publicId, answers);
+  const res = await submitPlay(publicId, answers);
+  assert.ok(res.ok, `submitPlay ไม่สำเร็จ: ${res.ok ? "" : res.error}`);
+  const result = res.result;
 
   assert.ok(
     result.title.includes("กระต่าย"),

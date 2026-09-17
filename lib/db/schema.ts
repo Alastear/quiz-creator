@@ -156,7 +156,12 @@ export const quizzes = pgTable("quizzes", {
     .notNull()
     .default({}),
   settings: jsonb("settings")
-    .$type<{ showProbabilityBar?: boolean }>()
+    .$type<{
+      showProbabilityBar?: boolean;
+      aiAnalysis?: boolean;
+      /** ให้ AI เป็นคนตัดสินผลลัพธ์แทนเครื่องคิดคะแนน (ใช้กับ quiz แนว MBTI) */
+      aiScoring?: boolean;
+    }>()
     .notNull()
     .default({}),
   viewCount: integer("view_count").notNull().default(0),
@@ -176,6 +181,9 @@ export const questions = pgTable("questions", {
   orderIndex: integer("order_index").notNull().default(0),
   kind: questionKind("kind").notNull().default("choice"),
   promptText: text("prompt_text").notNull(),
+  // มิติย่อยที่คำถามนี้วัด (เช่น cognitive function "Ni" ใน quiz แนว MBTI)
+  // null = คำถามทั่วไปที่ไม่ได้ผูกกับมิติย่อยไหน
+  facet: text("facet"),
   mediaType: mediaType("media_type").notNull().default("none"),
   mediaUrl: text("media_url"),
 });
@@ -225,6 +233,10 @@ export const plays = pgTable("plays", {
     onDelete: "set null",
   }),
   answers: jsonb("answers").$type<Record<string, string>>().notNull().default({}),
+  // บทวิเคราะห์ AI ของรอบเล่นนี้ (null = quiz ไม่ได้เปิด AI หรือเรียกไม่สำเร็จ)
+  aiAnalysis: text("ai_analysis"),
+  // ผลตัดสินแบบมีโครงสร้างตอนใช้ aiScoring (มิติ + cognitive function)
+  aiVerdict: jsonb("ai_verdict"),
   sessionHash: text("session_hash"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()

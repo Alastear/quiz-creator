@@ -84,7 +84,7 @@ export async function saveQuiz(
   draft: QuizDraft,
 ): Promise<{ ok: boolean; error?: string }> {
   const user = await getActor();
-  await getOwnedQuiz(quizId, user.id);
+  const existing = await getOwnedQuiz(quizId, user.id);
 
   const parsed = quizDraftSchema.safeParse(draft);
   if (!parsed.success) {
@@ -102,7 +102,13 @@ export async function saveQuiz(
         category: d.category,
         resultLogic: d.resultLogic,
         theme: d.theme,
-        settings: d.settings,
+        // aiAnalysis เป็นสิทธิ์ที่จ่ายเงินซื้อ และ aiScoring ตั้งได้จาก seed เท่านั้น
+        // ยึดค่าทั้งคู่จาก DB เสมอ ไม่งั้น client ส่ง draft เก่ามาทับแล้วหายไปเฉย ๆ
+        settings: {
+          ...d.settings,
+          aiAnalysis: existing.settings?.aiAnalysis,
+          aiScoring: existing.settings?.aiScoring,
+        },
       })
       .where(eq(quizzes.id, quizId));
 

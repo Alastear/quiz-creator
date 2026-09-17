@@ -1,0 +1,1 @@
+ALTER TABLE "plays" ADD COLUMN "ai_analysis" text;

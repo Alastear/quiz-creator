@@ -25,7 +25,7 @@ export default async function RegisterPage({
   if (googleEnabled) redirect(`/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`);
 
   return (
-    <main className="flex flex-1 items-center justify-center px-6 py-16">
+    <main className="flex flex-1 flex-col items-center justify-center px-6 py-16">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <CardTitle className={`${kanit.className} text-2xl`}>
@@ -59,6 +59,14 @@ export default async function RegisterPage({
           </p>
         </CardContent>
       </Card>
+      <div className="mt-5 text-center">
+        <Link
+          href="/"
+          className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+        >
+          ← กลับหน้าหลัก
+        </Link>
+      </div>
     </main>
   );
 }

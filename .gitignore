@@ -43,3 +43,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# agent skills ที่ vercel cli ดาวน์โหลดมาตอน provision integration
+.agents/
+.claude/
+skills-lock.json

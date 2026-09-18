@@ -71,6 +71,8 @@ export default async function CreatePage({
     questions: qs.map((q) => ({
       kind: q.kind,
       promptText: q.promptText,
+      // พกกลับไปด้วยเสมอ — builder ไม่ได้แสดงช่องนี้ แต่ถ้าไม่ส่งกลับตอนบันทึกค่าจะหาย
+      facet: q.facet,
       mediaType: q.mediaType,
       mediaUrl: q.mediaUrl ?? undefined,
       choices: cs

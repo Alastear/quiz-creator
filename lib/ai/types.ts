@@ -31,11 +31,13 @@ export type ClassifyInput = {
   ratings: { statement: string; answer: string; facet: string | null }[];
   /** คำตอบแบบพิมพ์เอง */
   textAnswers: { question: string; answer: string }[];
+  /** คะแนนฟังก์ชันที่ระบบคำนวณมาแล้ว — AI ใช้เป็นข้อมูลตั้งต้น ไม่ต้องคำนวณเอง */
+  functionScores: { code: string; strength: number }[];
 };
 
 export type ClassifyOutput = {
-  /** คะแนนครบทั้ง 8 ฟังก์ชัน (0-100) วัดแยกกันอิสระ — ไม่ได้เรียงมาก่อน */
-  functions: { code: string; strength: number; note: string }[];
+  /** คำอธิบายต่อฟังก์ชัน — ตัวเลขคะแนนเป็นของระบบ AI แค่เขียนว่าเห็นจากตรงไหน */
+  functions: { code: string; note: string }[];
   /** บทวิเคราะห์ภาษาไทย (พูดถึงฟังก์ชัน ไม่ระบุรหัส MBTI) */
   analysis: string;
 };

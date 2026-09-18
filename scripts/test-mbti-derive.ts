@@ -1,7 +1,7 @@
 // ตรวจสูตรคำนวณชนิด MBTI จากคะแนน cognitive function (ไม่เรียก AI ไม่แตะ DB)
 // รัน: pnpm tsx scripts/test-mbti-derive.ts
 //
-// สูตรนี้คือหัวใจของ quiz MBTI — AI ให้แค่คะแนนฟังก์ชัน ที่เหลือคำนวณตรงนี้
+// สูตรนี้คือหัวใจของ quiz MBTI — คำตอบ Likert → คะแนนฟังก์ชัน → ชนิด ทั้งหมดคำนวณในโค้ด
 // ถ้าสูตรแยกชนิดไม่ออก ผลที่ผู้เล่นได้จะมั่วโดยไม่มีอะไรฟ้อง
 import assert from "node:assert";
 import {
@@ -11,6 +11,7 @@ import {
   shadowOf,
   rankTypes,
   dimensionsFromFunctions,
+  scoreFunctionsFromRatings,
   type FunctionCode,
 } from "@/lib/mbti";
 
@@ -77,7 +78,34 @@ if (messyMargin < 1) {
   console.log("  ✓ แยกออกแล้ว");
 }
 
-// 4. คะแนนเท่ากันหมด = ไม่มีข้อมูล ต้องไม่ล่ม
+// 4. เส้นทางจริง: คำตอบ Likert 80 ข้อ → คะแนนฟังก์ชัน → ชนิด ต้องวนกลับมาได้ครบ 16
+//    (นี่คือสิ่งที่ผู้เล่นเจอจริง ต่างจากข้อ 1 ที่ป้อนโปรไฟล์อุดมคติเข้าไปตรง ๆ)
+console.log("\n── เล่นจริง 80 ข้อ แล้ววนกลับมาเป็นชนิดเดิม ──");
+const ANSWER_BY_POSITION = [0, 1, 2, 3];
+const ANSWER_SHADOW = 4;
+let roundTripBad = 0;
+for (const t of MBTI_TYPES) {
+  // ผู้เล่นแบบ t ตอบ 10 ข้อของแต่ละฟังก์ชันด้วยระดับตามตำแหน่งใน stack
+  const ratings = FUNCTION_CODES.flatMap((code) => {
+    const at = FUNCTION_STACK[t].indexOf(code);
+    const level = at >= 0 ? ANSWER_BY_POSITION[at] : ANSWER_SHADOW;
+    return Array.from({ length: 10 }, () => ({ facet: code as string, level }));
+  });
+  const scores = scoreFunctionsFromRatings(ratings);
+  const [best, second] = rankTypes(scores);
+  if (best.type !== t) {
+    roundTripBad++;
+    console.log(`  ✗ ${t} → ${best.type} (${best.fit}%) รอง ${second.type} ${second.fit}%`);
+  }
+}
+failures += roundTripBad;
+console.log(
+  roundTripBad === 0
+    ? "  ✓ 16/16 คำตอบของแต่ละชนิดคำนวณกลับมาเป็นชนิดเดิม"
+    : `  มีปัญหา ${roundTripBad} ชนิด`,
+);
+
+// 5. คะแนนเท่ากันหมด = ไม่มีข้อมูล ต้องไม่ล่ม
 const flat = Object.fromEntries(FUNCTION_CODES.map((f) => [f, 50]));
 const [flatBest] = rankTypes(flat);
 assert.ok(flatBest?.type, "คะแนนแบนราบต้องยังคืนชนิดได้ ไม่ throw");

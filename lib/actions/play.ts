@@ -27,6 +27,8 @@ import {
   STACK_LABEL,
   rankTypes,
   dimensionsFromFunctions,
+  scoreFunctionsFromRatings,
+  FUNCTION_CODES,
   type FunctionCode,
 } from "@/lib/mbti";
 
@@ -142,6 +144,8 @@ export async function submitPlay(
     question: string;
     answer: string;
     facet: string | null;
+    /** ลำดับตัวเลือก 0 = "ใช่เลย" … 4 = "ไม่เลย" */
+    level: number;
   }[] = [];
   for (const a of answers) {
     if (a.choiceId) {
@@ -153,6 +157,7 @@ export async function submitPlay(
           question: promptById.get(a.questionId) ?? "",
           answer: c.labelText,
           facet: facetById.get(a.questionId) ?? null,
+          level: c.orderIndex,
         });
       }
     } else if (a.text && qIds.has(a.questionId)) {
@@ -173,10 +178,11 @@ export async function submitPlay(
     scoreMax: r.scoreMax,
   }));
 
-  // quiz แนว MBTI ให้ AI เป็นคนตัดสินทั้งหมด (quizzes.settings.aiScoring)
-  // ตั้งใจไม่มี fallback ไปใช้เครื่องคิดคะแนน — ไม่งั้นผลที่ได้จะขัดกับบทวิเคราะห์
-  // ที่ AI เขียน ผู้เล่นเจอ error แล้วกดเล่นใหม่ดีกว่าได้ผลที่เชื่อไม่ได้
+  // quiz แนว MBTI (quizzes.settings.aiScoring): คะแนนฟังก์ชันคำนวณในโค้ด
+  // ส่วน AI อ่านคำตอบแล้วเขียนคำอธิบาย — ถ้า AI ล่มก็ยังไม่มีบทวิเคราะห์ให้อ่าน
+  // จึงถือว่าเล่นไม่สำเร็จ ให้ผู้เล่นกดส่งใหม่ดีกว่าแสดงผลเปล่า ๆ
   let verdict: Awaited<ReturnType<typeof analyzer.classify>> | null = null;
+  let functionScores: Record<FunctionCode, number> | null = null;
   if (quiz.settings?.aiScoring) {
     if (!analyzer.enabled)
       return {
@@ -193,6 +199,11 @@ export async function submitPlay(
     if (!aiRl.success)
       return { ok: false, error: "ใช้ AI ถี่เกินไป รออีกสักครู่แล้วลองใหม่" };
 
+    // คะแนนฟังก์ชันคำนวณจากคำตอบตรง ๆ ที่นี่ ไม่ได้ให้ AI เป็นคนให้คะแนน
+    functionScores = scoreFunctionsFromRatings(
+      choiceAnswers.map((a) => ({ facet: a.facet, level: a.level })),
+    );
+
     try {
       verdict = await analyzer.classify({
         quizTitle: quiz.title,
@@ -202,6 +213,10 @@ export async function submitPlay(
           facet: a.facet,
         })),
         textAnswers,
+        functionScores: FUNCTION_CODES.map((code) => ({
+          code,
+          strength: functionScores![code],
+        })),
       });
     } catch (e) {
       console.error("submitPlay: ai classify failed", e);
@@ -217,11 +232,9 @@ export async function submitPlay(
   // AI ให้แค่คะแนนฟังก์ชัน — ชนิด MBTI คำนวณจากโปรไฟล์คะแนนทั้ง 8 ตัวตรงนี้
   // (สูตรอยู่ใน lib/mbti.ts: เทียบระยะห่างกับโปรไฟล์ในอุดมคติของแต่ละชนิด)
   let mbti: MbtiBreakdown | null = null;
-  if (verdict) {
-    const scoreByCode: Partial<Record<FunctionCode, number>> = {};
-    for (const f of verdict.functions) {
-      scoreByCode[f.code as FunctionCode] = f.strength;
-    }
+  if (verdict && functionScores) {
+    const scoreByCode = functionScores;
+    const noteByCode = new Map(verdict.functions.map((f) => [f.code, f.note]));
     const ranked = rankTypes(scoreByCode);
     const best = ranked[0];
     const stack = FUNCTION_STACK[best.type];
@@ -237,13 +250,16 @@ export async function submitPlay(
       })),
       dimensions: dimensionsFromFunctions(scoreByCode, best.type),
       // แปะคำอธิบายไทยตั้งแต่ฝั่ง server — component ฝั่ง client จะได้ไม่ต้องรู้จักตาราง MBTI
-      functions: [...verdict.functions]
+      functions: [...FUNCTION_CODES]
+        .map((code) => ({ code, strength: scoreByCode[code] }))
         .sort((a, b) => b.strength - a.strength)
         .map((f) => {
-          const info = FUNCTION_INFO[f.code as FunctionCode];
-          const at = stack.indexOf(f.code as FunctionCode);
+          const info = FUNCTION_INFO[f.code];
+          const at = stack.indexOf(f.code);
           return {
-            ...f,
+            code: f.code as string,
+            strength: f.strength,
+            note: noteByCode.get(f.code) ?? "",
             thai: info?.thai ?? f.code,
             nick: info?.nick ?? "",
             blurb: info?.blurb ?? "",

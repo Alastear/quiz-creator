@@ -1,6 +1,6 @@
 // ความรู้เรื่อง MBTI ที่ระบบต้องใช้ร่วมกัน (ไม่พึ่ง DB / ไม่พึ่ง AI จึงเทสต์ง่าย)
-// การแบ่งงาน: AI ให้คะแนน cognitive function ทั้ง 8 ตัวจากคำตอบ
-// ส่วนไฟล์นี้คำนวณต่อว่าโปรไฟล์คะแนนนั้นออกมาเป็น MBTI ชนิดไหน
+// การแบ่งงาน: ไฟล์นี้คำนวณคะแนน cognitive function จากคำตอบ แล้วหาว่าเป็น MBTI ชนิดไหน
+// ส่วน AI ทำหน้าที่อ่านคำตอบแล้วเขียนคำอธิบาย ไม่ได้ให้คะแนนหรือตัดสินชนิด
 
 export const MBTI_TYPES = [
   "INTJ", "INTP", "ENTJ", "ENTP", "INFJ", "INFP", "ENFJ", "ENFP",
@@ -99,8 +99,8 @@ export function isFunctionCode(v: unknown): v is FunctionCode {
 }
 
 // ── หาชนิดจากคะแนน cognitive function ───────────────────────────
-// AI ให้คะแนนฟังก์ชันทั้ง 8 ตัวแยกกัน แล้วระบบคำนวณว่าโปรไฟล์นั้นใกล้ชนิดไหนที่สุด
-// ทำแบบนี้แทนที่จะให้ AI เลือกชนิดเอง เพราะ:
+// เทียบโปรไฟล์คะแนนกับโปรไฟล์ในอุดมคติของทั้ง 16 ชนิด แล้วเลือกตัวที่ใกล้ที่สุด
+// ทำในโค้ดแทนที่จะให้ AI สรุป เพราะ:
 //   1. คะแนนฟังก์ชันคือข้อมูลดิบ ชนิดเป็นข้อสรุป — สรุปด้วยสูตรตรวจสอบได้
 //   2. ผลที่แสดงกับคะแนนที่แสดงไม่มีทางขัดกันเอง
 
@@ -199,4 +199,50 @@ export function dimensionsFromFunctions(
       strength: Math.min(100, Math.max(50, Math.round(pct))),
     };
   });
+}
+
+// ── ให้คะแนนฟังก์ชันจากคำตอบโดยตรง ─────────────────────────────
+// เคยให้ AI เป็นคนให้คะแนนทั้ง 8 ตัว แต่วัดแล้วพบว่าโมเดลเล็กรวมคะแนน 80 ข้อ
+// ได้ไม่นิ่ง — ป้อนคำตอบคนละแบบสิ้นเชิงกลับคืนโปรไฟล์เกือบเหมือนกันทุกครั้ง
+// การบวกเลขเป็นงานของโค้ด ส่วน AI เก่งเรื่องอ่านข้อความและเขียนบรรยาย จึงแบ่งงานใหม่
+
+/** ระดับคำตอบ (เรียงตามลำดับตัวเลือก) → น้ำหนักที่ให้ฟังก์ชันนั้น */
+const LIKERT_WEIGHT = [4, 3, 2, 1, 0];
+const NEUTRAL_LEVEL = 2;
+
+export type FacetRating = {
+  /** รหัสฟังก์ชันที่ข้อนั้นวัด */
+  facet: string | null;
+  /** ลำดับตัวเลือกที่เลือก 0 = "ใช่เลย" … 4 = "ไม่เลย" */
+  level: number;
+};
+
+/**
+ * รวมคำตอบ Likert เป็นคะแนน 0-100 ต่อฟังก์ชัน
+ * ฟังก์ชันที่ไม่มีข้อวัดเลยจะได้ค่ากลาง (50) แทนที่จะเป็น 0
+ * ไม่งั้นการคำนวณชนิดจะเอนไปหาชนิดที่มีฟังก์ชันนั้นเป็นตัวอ่อน
+ */
+export function scoreFunctionsFromRatings(
+  ratings: FacetRating[],
+): Record<FunctionCode, number> {
+  const sum: Partial<Record<FunctionCode, number>> = {};
+  const count: Partial<Record<FunctionCode, number>> = {};
+
+  for (const r of ratings) {
+    if (!isFunctionCode(r.facet)) continue;
+    const lvl =
+      Number.isInteger(r.level) && r.level >= 0 && r.level < LIKERT_WEIGHT.length
+        ? r.level
+        : NEUTRAL_LEVEL;
+    sum[r.facet] = (sum[r.facet] ?? 0) + LIKERT_WEIGHT[lvl];
+    count[r.facet] = (count[r.facet] ?? 0) + 1;
+  }
+
+  const out = {} as Record<FunctionCode, number>;
+  const max = LIKERT_WEIGHT[0];
+  for (const f of FUNCTION_CODES) {
+    const n = count[f] ?? 0;
+    out[f] = n === 0 ? 50 : Math.round(((sum[f] ?? 0) / (n * max)) * 100);
+  }
+  return out;
 }

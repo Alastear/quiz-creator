@@ -14,12 +14,35 @@ const TIMEOUT_MS = 20_000;
 // จัดผลทั้งชุด 80 ข้อใช้เวลานานกว่าเขียนบรรยายเฉย ๆ
 const CLASSIFY_TIMEOUT_MS = 45_000;
 
+// ค่า filter เริ่มต้นของ Gemini เข้มเกินไปสำหรับ quiz บุคลิกภาพ
+// เจอกับตัว: ข้อความไทยธรรมดาอย่าง "ตอบตามปกติของคนแบบนี้" ก็โดน PROHIBITED_CONTENT
+// พอโดนบล็อกแล้วผู้เล่นไม่ได้ผลลัพธ์เลย จึงผ่อนลงมาให้บล็อกเฉพาะที่อันตรายจริง
+const SAFETY_SETTINGS = [
+  "HARM_CATEGORY_HARASSMENT",
+  "HARM_CATEGORY_HATE_SPEECH",
+  "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+  "HARM_CATEGORY_DANGEROUS_CONTENT",
+].map((category) => ({ category, threshold: "BLOCK_ONLY_HIGH" }));
+
+/** Gemini ปฏิเสธคำขอด้วย content filter — แยกชนิดไว้ให้ผู้เรียกตัดสินใจลองใหม่ได้ */
+export class GeminiBlockedError extends Error {
+  constructor(readonly reason: string) {
+    super(`Gemini บล็อกคำขอ: ${reason}`);
+    this.name = "GeminiBlockedError";
+  }
+}
+
 type GeminiResponse = {
   candidates?: {
     content?: { parts?: { text?: string }[] };
     finishReason?: string;
   }[];
   promptFeedback?: { blockReason?: string };
+  usageMetadata?: {
+    promptTokenCount?: number;
+    candidatesTokenCount?: number;
+    totalTokenCount?: number;
+  };
   error?: { message?: string };
 };
 
@@ -56,6 +79,7 @@ async function callGemini(
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: systemPrompt }] },
         contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+        safetySettings: SAFETY_SETTINGS,
         generationConfig: {
           temperature: opts.temperature,
           maxOutputTokens: opts.maxOutputTokens,
@@ -80,7 +104,15 @@ async function callGemini(
     );
   }
   if (json.promptFeedback?.blockReason) {
-    throw new Error(`Gemini บล็อกคำขอ: ${json.promptFeedback.blockReason}`);
+    throw new GeminiBlockedError(json.promptFeedback.blockReason);
+  }
+
+  // log โควตาที่ใช้ไว้ดูใน runtime log — ทุกครั้งที่มีคนเล่นคือเงินที่จ่ายจริง
+  const u = json.usageMetadata;
+  if (u) {
+    console.log(
+      `[gemini] ${env.GEMINI_MODEL} in=${u.promptTokenCount ?? "?"} out=${u.candidatesTokenCount ?? "?"} total=${u.totalTokenCount ?? "?"}`,
+    );
   }
 
   const text = (json.candidates?.[0]?.content?.parts ?? [])
@@ -103,21 +135,15 @@ const CLASSIFY_SCHEMA = {
         type: "object",
         properties: {
           code: { type: "string", enum: [...FUNCTION_CODES] },
-          strength: { type: "number" },
           note: { type: "string" },
         },
-        required: ["code", "strength", "note"],
+        required: ["code", "note"],
       },
     },
     analysis: { type: "string" },
   },
   required: ["functions", "analysis"],
 } as const;
-
-const clamp = (n: unknown, lo: number, hi: number, fallback: number) =>
-  typeof n === "number" && Number.isFinite(n)
-    ? Math.min(hi, Math.max(lo, Math.round(n)))
-    : fallback;
 
 /** ตรวจคำตอบของ AI ก่อนเอาไปใช้ — responseSchema กันรูปร่างได้ แต่ไม่กันของขาด/ซ้ำ */
 function parseClassify(raw: string): ClassifyOutput {
@@ -140,15 +166,8 @@ function parseClassify(raw: string): ClassifyOutput {
     })
     .map((f) => ({
       code: f.code as string,
-      strength: clamp(f.strength, 0, 100, 50),
       note: typeof f.note === "string" ? f.note.slice(0, 300) : "",
     }));
-
-  // ต้องครบทั้ง 8 — ขาดตัวเดียวการคำนวณชนิดก็เพี้ยนทันที
-  if (functions.length !== FUNCTION_CODES.length)
-    throw new Error(
-      `Gemini ให้คะแนนฟังก์ชันไม่ครบ (ได้ ${functions.length}/${FUNCTION_CODES.length})`,
-    );
 
   const analysis = typeof o.analysis === "string" ? o.analysis.trim() : "";
   if (!analysis) throw new Error("Gemini ไม่ได้คืนบทวิเคราะห์");
@@ -170,17 +189,31 @@ export const geminiAnalyzer: Analyzer = {
   },
 
   async classify(input: ClassifyInput): Promise<ClassifyOutput> {
-    const raw = await callGemini(
-      CLASSIFY_SYSTEM_PROMPT,
-      buildClassifyPrompt(input),
-      {
-        timeoutMs: CLASSIFY_TIMEOUT_MS,
-        maxOutputTokens: 3000,
-        // ตัดสินผลควรนิ่ง — คนเดิมตอบเหมือนเดิมควรได้ผลเดิม
-        temperature: 0.3,
-        responseSchema: CLASSIFY_SCHEMA,
-      },
-    );
-    return parseClassify(raw);
+    const run = async (i: ClassifyInput) =>
+      parseClassify(
+        await callGemini(CLASSIFY_SYSTEM_PROMPT, buildClassifyPrompt(i), {
+          timeoutMs: CLASSIFY_TIMEOUT_MS,
+          maxOutputTokens: 3000,
+          // ตัดสินผลควรนิ่ง — คนเดิมตอบเหมือนเดิมควรได้ผลเดิม
+          temperature: 0.3,
+          responseSchema: CLASSIFY_SCHEMA,
+        }),
+      );
+
+    try {
+      return await run(input);
+    } catch (e) {
+      // PROHIBITED_CONTENT ปิดผ่าน safetySettings ไม่ได้ และ payload เต็ม ๆ
+      // บวกข้อความที่ผู้เล่นพิมพ์เองบางแบบก็ทำให้ติด filter ได้
+      // คะแนน Likert 80 ข้ออย่างเดียวก็พอให้คะแนนฟังก์ชันได้ → ตัดข้อความออกแล้วลองใหม่
+      // ดีกว่าปล่อยให้ผู้เล่นตอบครบ 82 ข้อแล้วไม่ได้ผลลัพธ์อะไรเลย
+      if (e instanceof GeminiBlockedError && input.textAnswers.length > 0) {
+        console.warn(
+          `[gemini] classify ถูกบล็อก (${e.reason}) — ลองใหม่โดยตัดคำตอบแบบพิมพ์ออก`,
+        );
+        return run({ ...input, textAnswers: [] });
+      }
+      throw e;
+    }
   },
 };

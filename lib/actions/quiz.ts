@@ -141,6 +141,7 @@ export async function saveQuiz(
           orderIndex: qi,
           kind: q.kind,
           promptText: q.promptText,
+          facet: q.facet ?? null,
           mediaType: q.mediaType,
           mediaUrl: q.mediaUrl || null,
         })

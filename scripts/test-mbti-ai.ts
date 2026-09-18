@@ -1,4 +1,4 @@
-// ทดสอบเส้นทาง AI ตัดสิน MBTI จริง (เรียก Gemini จริง เขียน play ลง DB จริง)
+// ทดสอบเส้นทาง MBTI จริงทั้งสาย (เรียก Gemini จริง เขียน play ลง DB จริง)
 // รัน: pnpm tsx --env-file=.env.local scripts/test-mbti-ai.ts [TYPE]
 //
 // จำลองคนที่ตอบชัดเจนไปทาง TYPE ที่ระบุ แล้วดูว่า AI ตัดสินตรงไหม

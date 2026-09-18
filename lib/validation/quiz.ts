@@ -20,6 +20,9 @@ export const questionDraftSchema = z.object({
   kind: questionKindSchema.default("choice"),
   // story = เนื้อเรื่อง, text = โจทย์ให้พิมพ์ตอบ, choice = คำถามมีตัวเลือก
   promptText: z.string().trim().min(1, "ใส่เนื้อหา").max(4000),
+  // มิติย่อยที่คำถามนี้วัด (เช่น cognitive function) — builder ไม่ได้แก้ แต่ต้องพกไปกลับ
+  // ไม่งั้นกดบันทึกครั้งเดียวค่าหายทั้ง quiz
+  facet: z.string().trim().max(40).nullable().optional(),
   mediaType: mediaTypeSchema.default("none"),
   mediaUrl: mediaUrlSchema,
   // มีตัวเลือกเฉพาะ kind=choice (text/story เป็น array ว่างได้)

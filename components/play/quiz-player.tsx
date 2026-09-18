@@ -42,6 +42,7 @@ export function QuizPlayer({
   const [textVal, setTextVal] = useState("");
   // ข้อความผิดพลาดตอนส่งคำตอบ (quiz แนว MBTI พึ่ง AI จึงพลาดได้จริง)
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [coverToast, setCoverToast] = useState<string | null>(null);
   // เก็บคำตอบชุดล่าสุดไว้ให้กด "ลองอีกครั้ง" ได้โดยไม่ต้องเล่นใหม่
   const [lastPayload, setLastPayload] = useState<
     { questionId: string; choiceId?: string; text?: string }[] | null
@@ -108,7 +109,7 @@ export function QuizPlayer({
             <img
               src={coverImageUrl}
               alt=""
-              className="max-h-64 w-auto rounded-lg object-cover"
+              className="max-h-64 w-auto max-w-full rounded-lg object-contain"
             />
           )}
           <h1 className="text-3xl font-bold">{title}</h1>
@@ -116,6 +117,29 @@ export function QuizPlayer({
           <Button size="lg" onClick={() => setPhase("playing")}>
             เริ่มทำแบบทดสอบ!
           </Button>
+
+          {/* แชร์ได้ตั้งแต่ยังไม่เล่น — ไม่ต้องเล่นจบก่อนถึงจะเอาลิงก์ไปส่งต่อได้ */}
+          <div className="flex flex-col items-center gap-1">
+            <Button
+              variant="outline"
+              onClick={async () => {
+                const copied = await shareOrCopy({
+                  title,
+                  text: description || title,
+                  url: `${window.location.origin}/quiz/${publicId}`,
+                });
+                if (copied) {
+                  setCoverToast("คัดลอกลิงก์แล้ว ✓");
+                  setTimeout(() => setCoverToast(null), 1600);
+                }
+              }}
+            >
+              🔗 แชร์ quiz นี้
+            </Button>
+            {coverToast && (
+              <p className="text-xs text-muted-foreground">{coverToast}</p>
+            )}
+          </div>
         </div>
       )}
 
@@ -277,13 +301,12 @@ function ResultScreen({
 
   async function nativeShare() {
     setShareOpen(false);
-    if (navigator.share) {
-      await navigator
-        .share({ title: quizTitle, text: shareText, url: shareUrl })
-        .catch(() => {});
-    } else {
-      await copyLink();
-    }
+    const copied = await shareOrCopy({
+      title: quizTitle,
+      text: shareText,
+      url: shareUrl,
+    });
+    if (copied) flash("คัดลอกลิงก์แล้ว ✓");
   }
 
   return (
@@ -296,7 +319,7 @@ function ResultScreen({
           <img
             src={result.mediaUrl}
             alt=""
-            className="max-h-64 w-auto rounded-lg object-cover"
+            className="max-h-64 w-auto max-w-full rounded-lg object-contain"
           />
         )}
         <h1 className="text-3xl font-bold">{result.title}</h1>
@@ -517,6 +540,28 @@ function ResultScreen({
       )}
     </div>
   );
+}
+
+/**
+ * แชร์ผ่านระบบถ้าเครื่องรองรับ (มือถือ) ไม่งั้นคัดลอกลิงก์
+ * คืน true เมื่อจบด้วยการคัดลอก เพื่อให้ผู้เรียกขึ้นข้อความบอกได้
+ */
+async function shareOrCopy(payload: {
+  title: string;
+  text: string;
+  url: string;
+}): Promise<boolean> {
+  if (typeof navigator !== "undefined" && navigator.share) {
+    try {
+      await navigator.share(payload);
+      return false;
+    } catch {
+      // ผู้ใช้กดยกเลิก share sheet — ไม่ต้องทำอะไรต่อ
+      return false;
+    }
+  }
+  await navigator.clipboard.writeText(`${payload.text}\n${payload.url}`);
+  return true;
 }
 
 function MenuItem({ label, onClick }: { label: string; onClick: () => void }) {

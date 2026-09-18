@@ -26,9 +26,16 @@ export async function generateMetadata({
     title: `${quiz.title} · Quibby`,
     description: quiz.description ?? undefined,
     openGraph: {
+      type: "website",
       title: quiz.title,
       description: quiz.description ?? undefined,
-      // รูป OG สร้างจาก opengraph-image.tsx (1200x630 + ฟอนต์ไทย)
+      // รูปมาจาก opengraph-image.tsx — ใช้รูปปกที่อัปโหลดถ้ามี
+    },
+    // ไม่ตั้ง card ไว้ X/Twitter จะโชว์เป็นรูปเล็กข้างข้อความแทนรูปเต็มความกว้าง
+    twitter: {
+      card: "summary_large_image",
+      title: quiz.title,
+      description: quiz.description ?? undefined,
     },
   };
 }

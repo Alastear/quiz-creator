@@ -48,19 +48,37 @@ export function QuizPlayer({
     { questionId: string; choiceId?: string; text?: string }[] | null
   >(null);
   const [result, setResult] = useState<PlayResult | null>(null);
+  // ข้อที่ไปถึงไกลสุด — ใช้ทำปุ่ม "กลับไปข้อล่าสุด" หลังย้อนไปแก้ข้อเก่า
+  const [furthest, setFurthest] = useState(0);
+  const [showJump, setShowJump] = useState(false);
   const [pending, startTransition] = useTransition();
+
+  const answeredCount = questions.filter((q) => answers[q.id]).length;
 
   const font =
     QUIZ_FONTS[(fontKey as QuizFontKey) in QUIZ_FONTS ? (fontKey as QuizFontKey) : "sarabun"];
+
+  /**
+   * ย้ายไปข้อที่ i พร้อมกู้คำตอบเดิมของข้อนั้นกลับมาแสดง
+   * ต้องรับ map คำตอบเข้ามาตรง ๆ เพราะตอนเรียกจาก advance() ค่าใน state ยังไม่อัปเดต
+   */
+  function goTo(i: number, src: typeof answers = answers) {
+    if (i < 0 || i >= questions.length) return;
+    setIndex(i);
+    setSubmitError(null);
+    setShowJump(false);
+    setFurthest((f) => Math.max(f, i));
+    const q = questions[i];
+    setTextVal(q?.kind === "text" ? (src[q.id]?.text ?? "") : "");
+  }
 
   // บันทึกคำตอบ (ถ้ามี) แล้วไปต่อ; ถ้าเป็นข้อสุดท้าย → ส่ง
   function advance(answer?: { choiceId?: string; text?: string }) {
     const q = questions[index];
     const next = answer ? { ...answers, [q.id]: answer } : answers;
     setAnswers(next);
-    setTextVal("");
     if (index + 1 < questions.length) {
-      setIndex(index + 1);
+      goTo(index + 1, next);
     } else {
       const payload = Object.entries(next).map(([qid, a]) => ({
         questionId: qid,
@@ -148,12 +166,78 @@ export function QuizPlayer({
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
             <div
               className="h-full bg-primary transition-all"
-              style={{ width: `${(index / questions.length) * 100}%` }}
+              style={{ width: `${(answeredCount / questions.length) * 100}%` }}
             />
           </div>
-          <p className="text-sm text-muted-foreground">
-            ข้อ {index + 1} / {questions.length}
-          </p>
+          {/* แถบนำทาง — ย้อนกลับไปแก้ข้อเก่าได้ */}
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={index === 0 || pending}
+              onClick={() => goTo(index - 1)}
+            >
+              ← ย้อนกลับ
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              ข้อ {index + 1} / {questions.length}
+            </span>
+            <span className="ml-auto flex items-center gap-2">
+              {index < furthest && (
+                <Button variant="ghost" size="sm" onClick={() => goTo(furthest)}>
+                  ไปข้อล่าสุด ({furthest + 1}) →
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                aria-expanded={showJump}
+                onClick={() => setShowJump((v) => !v)}
+              >
+                ทุกข้อ ▾
+              </Button>
+            </span>
+          </div>
+
+          {/* ตารางกระโดดข้อ — กดไปข้อไหนก็ได้ที่เคยไปถึงแล้ว */}
+          {showJump && (
+            <div className="rounded-lg border p-3">
+              <p className="mb-2 text-xs text-muted-foreground">
+                ตอบแล้ว {answeredCount} / {questions.length} ข้อ · กดเลขเพื่อไปข้อนั้น
+                (ไปได้ถึงข้อ {furthest + 1})
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {questions.map((q, i) => {
+                  const done = Boolean(answers[q.id]);
+                  const reachable = i <= furthest;
+                  return (
+                    <button
+                      key={q.id}
+                      disabled={!reachable || pending}
+                      onClick={() => goTo(i)}
+                      className={[
+                        "h-8 w-8 rounded-md border text-xs transition-colors",
+                        i === index
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : done
+                            ? "border-primary/40 bg-primary/10 text-primary hover:bg-primary/20"
+                            : reachable
+                              ? "border-border hover:bg-muted"
+                              : "border-transparent bg-muted/40 text-muted-foreground/50",
+                      ].join(" ")}
+                      title={
+                        reachable
+                          ? `ข้อ ${i + 1}${done ? " (ตอบแล้ว)" : ""}`
+                          : `ข้อ ${i + 1} — ยังไปไม่ถึง`
+                      }
+                    >
+                      {i + 1}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           <h2 className="whitespace-pre-line text-xl font-semibold">
             {questions[index].promptText}
           </h2>
@@ -172,7 +256,11 @@ export function QuizPlayer({
                 <Button
                   key={c.id}
                   variant="outline"
-                  className="h-auto justify-start whitespace-normal py-3 text-left"
+                  // ย้อนกลับมาแล้วต้องเห็นว่าเดิมเลือกอะไรไว้
+                  data-chosen={
+                    answers[questions[index].id]?.choiceId === c.id || undefined
+                  }
+                  className="h-auto justify-start whitespace-normal py-3 text-left data-[chosen]:border-primary data-[chosen]:bg-primary/10 data-[chosen]:text-primary"
                   disabled={pending}
                   onClick={() => advance({ choiceId: c.id })}
                 >
@@ -245,6 +333,9 @@ export function QuizPlayer({
             setAnswers({});
             setTextVal("");
             setResult(null);
+            setFurthest(0);
+            setShowJump(false);
+            setSubmitError(null);
           }}
         />
       )}

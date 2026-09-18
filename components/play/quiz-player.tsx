@@ -439,6 +439,18 @@ function ResultScreen({
       {/* รายละเอียด MBTI — เฉพาะ quiz ที่ให้ AI ตัดสินผล */}
       {result.mbti && (
         <section className="w-full rounded-xl border bg-background p-5 text-left">
+          {/* ตอบระดับเดียวกันแทบทุกข้อ → แยกฟังก์ชันไม่ออก ต้องบอกตรง ๆ ไม่ใช่โชว์ผลลอย ๆ */}
+          {result.mbti.lowSignal && (
+            <div className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3">
+              <p className="text-sm font-medium">ผลรอบนี้ยังเชื่อไม่ได้</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                คุณเลือกคำตอบระดับเดียวกันแทบทุกข้อ ทำให้ทุกฟังก์ชันได้คะแนนใกล้เคียงกันหมด
+                ระบบเลยแยกไม่ออกว่าอันไหนเด่นกว่ากัน — ลองทำใหม่โดยตอบตามความจริง
+                ใช้ทั้ง &ldquo;ใช่เลย&rdquo; และ &ldquo;ไม่เลย&rdquo; ปนกันตามแต่ละข้อ
+              </p>
+            </div>
+          )}
+
           <h2 className="mb-1 text-sm font-semibold">
             MBTI ที่เข้ากับคุณ เรียงตามความใกล้เคียง
           </h2>

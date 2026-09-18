@@ -246,3 +246,46 @@ export function scoreFunctionsFromRatings(
   }
   return out;
 }
+
+// ── ปรับคะแนนให้เทียบกับตัวผู้ตอบเอง ────────────────────────────
+// ทุกประโยคเขียนทางบวก (เห็นด้วย = ฟังก์ชันแรง) คนที่ชอบตอบ "ใช่" จึงได้สูงหมด
+// และคนที่ชอบตอบ "ไม่" ได้ต่ำหมด ทั้งที่รูปร่างโปรไฟล์อาจเหมือนกันเป๊ะ
+// สิ่งที่มีความหมายจริงคือ "ฟังก์ชันไหนสูงกว่าฟังก์ชันไหนในตัวคนคนนั้น"
+// จึงยืดช่วงคะแนนของแต่ละคนให้เต็มสเกลก่อนเอาไปเทียบกับโปรไฟล์มาตรฐาน
+
+/** ช่วงคะแนนหลังปรับ — เลือกให้ตรงกับ EXPECTED_MAIN/EXPECTED_SHADOW */
+const NORM_MIN = 8;
+const NORM_MAX = 96;
+/** ห่างกันน้อยกว่านี้ถือว่าคำตอบไม่มีข้อมูลพอจะแยกฟังก์ชัน */
+export const MIN_INFORMATIVE_SPREAD = 15;
+
+export type NormalizedScores = {
+  scores: Record<FunctionCode, number>;
+  /** ระยะห่างสูงสุด-ต่ำสุดของคะแนนดิบ */
+  spread: number;
+  /** false = ผู้ตอบเลือกระดับเดิมแทบทุกข้อ ผลลัพธ์แทบไม่มีความหมาย */
+  informative: boolean;
+};
+
+export function normalizeFunctionScores(
+  raw: Record<FunctionCode, number>,
+): NormalizedScores {
+  const values = FUNCTION_CODES.map((f) => raw[f] ?? 0);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const spread = max - min;
+
+  // ตอบเหมือนกันหมด → ยืดไม่ได้ (หารศูนย์) และไม่ควรแกล้งทำเป็นมีผล
+  if (spread < MIN_INFORMATIVE_SPREAD) {
+    const flat = {} as Record<FunctionCode, number>;
+    for (const f of FUNCTION_CODES) flat[f] = raw[f] ?? 0;
+    return { scores: flat, spread, informative: false };
+  }
+
+  const scale = (NORM_MAX - NORM_MIN) / spread;
+  const scores = {} as Record<FunctionCode, number>;
+  for (const f of FUNCTION_CODES) {
+    scores[f] = Math.round(NORM_MIN + ((raw[f] ?? 0) - min) * scale);
+  }
+  return { scores, spread, informative: true };
+}

@@ -28,6 +28,7 @@ import {
   rankTypes,
   dimensionsFromFunctions,
   scoreFunctionsFromRatings,
+  normalizeFunctionScores,
   FUNCTION_CODES,
   type FunctionCode,
 } from "@/lib/mbti";
@@ -59,6 +60,8 @@ export type MbtiBreakdown = {
   confidence: number;
   /** อันดับความเข้ากันหลายชนิด — ไม่ได้ฟันธงชนิดเดียว */
   ranking: { type: string; fit: number; title: string }[];
+  /** true = ผู้เล่นเลือกระดับเดิมแทบทุกข้อ ผลลัพธ์แทบไม่มีความหมาย */
+  lowSignal: boolean;
   dimensions: { axis: string; pick: string; strength: number }[];
   /** 8 ฟังก์ชันเรียงจากเด่นสุด พร้อมคำอธิบายไทย */
   functions: {
@@ -183,6 +186,7 @@ export async function submitPlay(
   // จึงถือว่าเล่นไม่สำเร็จ ให้ผู้เล่นกดส่งใหม่ดีกว่าแสดงผลเปล่า ๆ
   let verdict: Awaited<ReturnType<typeof analyzer.classify>> | null = null;
   let functionScores: Record<FunctionCode, number> | null = null;
+  let lowSignal = false;
   if (quiz.settings?.aiScoring) {
     if (!analyzer.enabled)
       return {
@@ -200,9 +204,13 @@ export async function submitPlay(
       return { ok: false, error: "ใช้ AI ถี่เกินไป รออีกสักครู่แล้วลองใหม่" };
 
     // คะแนนฟังก์ชันคำนวณจากคำตอบตรง ๆ ที่นี่ ไม่ได้ให้ AI เป็นคนให้คะแนน
-    functionScores = scoreFunctionsFromRatings(
+    // แล้วยืดเทียบกับตัวผู้ตอบเอง กัน bias ของคนที่ชอบตอบ "ใช่" หรือ "ไม่" เป็นหลัก
+    const rawScores = scoreFunctionsFromRatings(
       choiceAnswers.map((a) => ({ facet: a.facet, level: a.level })),
     );
+    const normalized = normalizeFunctionScores(rawScores);
+    functionScores = normalized.scores;
+    lowSignal = !normalized.informative;
 
     try {
       verdict = await analyzer.classify({
@@ -242,6 +250,7 @@ export async function submitPlay(
     mbti = {
       type: best.type,
       confidence: best.fit,
+      lowSignal,
       // โชว์หลายชนิดแทนการฟันธงตัวเดียว — โปรไฟล์คนจริงมักคาบเกี่ยวหลายแบบ
       ranking: ranked.slice(0, MBTI_RANKING_SIZE).map((m) => ({
         type: m.type,
